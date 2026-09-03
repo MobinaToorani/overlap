@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web (lint, typecheck, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  worker:
+    name: Worker (lint, test)
+    runs-on: ubuntu-latest
+    # apps/worker is a directory skeleton only (T8 builds it out) — this job
+    # activates itself the moment a pyproject.toml shows up, so nobody has
+    # to remember to wire up worker CI later.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check whether the worker has any code yet
+        id: probe
+        run: |
+          if [ -f apps/worker/pyproject.toml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.probe.outputs.present == 'true'
+        with:
+          python-version: '3.12'
+
+      - name: Install and test
+        if: steps.probe.outputs.present == 'true'
+        working-directory: apps/worker
+        run: |
+          pip install -e ".[dev]"
+          ruff check .
+          pytest

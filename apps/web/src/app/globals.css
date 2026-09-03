@@ -1,0 +1,68 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens — docs/engineering-spec.md §8.
+ * Dark mode is the default and only theme for v1. Heat steps must always
+ * pair with a numeric label (a11y) — never encode data in saturation alone.
+ */
+:root {
+  --bg: #0f0f11;
+  --surface: #17171a;
+  --surface-raised: #1f1f23;
+  --border: #2a2a2f;
+  --text: #f2f2f0;
+  --text-muted: #8a8a93;
+  --accent: #e4572e;
+
+  --heat-0: #17171a;
+  --heat-1: #1e2a2e;
+  --heat-2: #244049;
+  --heat-3: #2b5a66;
+  --heat-4: #337a85;
+  --heat-5: #3e9ca6;
+
+  --soft-stroke: #3a3a42;
+
+  --vibe-expansive: #e8b44a;
+  --vibe-lowkey: #7e9cc7;
+  --vibe-slammed: #8a8a93;
+  --vibe-away: #6e6e78;
+
+  --radius: 14px;
+  --font-ui:
+    var(--font-inter), system-ui, sans-serif;
+  --font-display:
+    var(--font-instrument-serif), Georgia, serif;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-accent: var(--accent);
+
+  --color-heat-0: var(--heat-0);
+  --color-heat-1: var(--heat-1);
+  --color-heat-2: var(--heat-2);
+  --color-heat-3: var(--heat-3);
+  --color-heat-4: var(--heat-4);
+  --color-heat-5: var(--heat-5);
+
+  --color-vibe-expansive: var(--vibe-expansive);
+  --color-vibe-lowkey: var(--vibe-lowkey);
+  --color-vibe-slammed: var(--vibe-slammed);
+  --color-vibe-away: var(--vibe-away);
+
+  --radius-DEFAULT: var(--radius);
+  --font-ui: var(--font-ui);
+  --font-display: var(--font-display);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+}
