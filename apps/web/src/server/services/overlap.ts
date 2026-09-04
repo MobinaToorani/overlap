@@ -38,6 +38,12 @@ import { HIDDEN_VIBE, VIBES } from '@overlap/shared';
 import { copy, fillTemplate } from '@/lib/copy';
 import { dayOfMonth, horizonDates, weekdayName } from './dateUtils';
 
+// NightOverlap.horizonWeek is derived as floor(idx / 7) and typed 0 | 1 | 2,
+// so this must stay <= 21. The master doc's risk table contemplates
+// *shrinking* the horizon to two weeks if the Signal takes too long to
+// complete — that direction is safe. Growing it is not: 28 would produce a
+// 3 wearing a 0 | 1 | 2 type, with no error anywhere. Widen HorizonWeek in
+// packages/shared first if that ever happens.
 const HORIZON_LENGTH = 21;
 const CONFIRMED_COHORT_FLOOR = 5; // INV-3
 const BAND_ELIGIBLE_FLOOR = 2;
@@ -72,6 +78,17 @@ export function computeOverlap(input: {
   groupId: string;
   members: Member[];
   resolved: ResolvedSignalMap;
+  /**
+   * Users who submitted a signal for the CURRENT week — drives
+   * `signalledCount` ("5 of 7 signalled") and `isLive`. Deliberately a
+   * separate argument rather than derived from `resolved`, because the two
+   * genuinely differ in both directions: someone can submit this week's
+   * Signal tapping zero free nights (signalled, but contributes nothing to
+   * `resolved` worth counting), and someone's three-week-old signal can
+   * still put nights in `resolved` long after they stopped signalling.
+   * Deriving it here would quietly get the cold-start threshold wrong.
+   * Whoever wires this up (T6/T7) owns computing it correctly.
+   */
   signalledUserIds: ReadonlySet<string>;
   today: Date;
 }): GroupOverlap {

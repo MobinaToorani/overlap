@@ -1,6 +1,7 @@
 /**
  * The four mandatory signal-resolution tests, engineering-spec.md §4.0
- * "Required additional tests" (FIX-2).
+ * "Required additional tests" (FIX-2), plus a regression test for
+ * timestamp-ordering (see the last test in this file).
  */
 import { describe, expect, it } from 'vitest';
 import { computeOverlap } from '@/server/services/overlap';
@@ -119,5 +120,43 @@ describe('resolveSignals', () => {
     expect(night.totalMembers).toBe(2); // 'b' still counted as a member
     expect(night.confirmedCount).toBe(1); // but contributes nothing to confirmed/soft
     expect(night.softCount).toBe(0);
+  });
+
+  it('orders signals by instant, not by string — a "-04:00" timestamp still beats an earlier "Z" one', () => {
+    // Both signals cover the same date. The one written with an offset is
+    // genuinely 2 hours LATER in real time, but sorts EARLIER as a plain
+    // string ('...T08:00:00-04:00' < '...T10:00:00.000Z'), so a
+    // lexicographic comparison silently picks the wrong winner for Rule B.
+    // Every fixture elsewhere in this file uses toISOString() output, which
+    // is uniformly 'Z' — that uniformity is exactly why this class of bug
+    // survives an otherwise-passing suite.
+    const date = dateAt(2);
+    const earlierInstantZ = makeSignal({
+      userId: 'a',
+      groupId: null,
+      weekStartDate: dateAt(-7),
+      vibe: 'slammed',
+      submittedAt: '2026-09-03T10:00:00.000Z', // 10:00Z
+      nights: [{ date, state: 'blocked', horizonWeek: 1 }],
+    });
+    const laterInstantWithOffset = makeSignal({
+      userId: 'a',
+      groupId: null,
+      weekStartDate: dateAt(0),
+      vibe: 'down_for_anything',
+      submittedAt: '2026-09-03T08:00:00-04:00', // 12:00Z — later than the above
+      nights: [{ date, state: 'confirmed_free', horizonWeek: 0 }],
+    });
+
+    const resolved = resolveSignals({
+      signals: [earlierInstantZ, laterInstantWithOffset],
+      groupId: GROUP,
+      now: new Date('2026-09-03T13:00:00.000Z'), // within the freshness window of both
+    });
+
+    expect(resolved.get('a')!.get(date)).toMatchObject({
+      state: 'confirmed_free', // the genuinely-more-recent signal wins
+      vibe: 'down_for_anything',
+    });
   });
 });

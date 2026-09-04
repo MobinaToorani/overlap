@@ -36,6 +36,14 @@ import type {
 
 const FRESHNESS_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** A signal paired with its submittedAt parsed to an epoch-ms instant, so
+ * ordering never depends on how the timestamp string happened to be
+ * formatted. */
+interface DatedSignal {
+  signal: SignalWithNights;
+  submittedMs: number;
+}
+
 export function resolveSignals(input: {
   signals: SignalWithNights[];
   groupId: string;
@@ -44,28 +52,38 @@ export function resolveSignals(input: {
   const { signals, groupId, now } = input;
   const nowMs = now.getTime();
 
-  const byUser = new Map<string, SignalWithNights[]>();
+  // Parse submittedAt ONCE, up front, and compare instants numerically from
+  // here on. Comparing the raw ISO strings would be subtly wrong: ISO 8601
+  // only sorts lexicographically when every value uses an identical
+  // representation, and '2026-09-03T08:00:00-04:00' (12:00Z) sorts BEFORE
+  // '2026-09-03T10:00:00.000Z' (10:00Z) as a string despite being two hours
+  // later in real time. That would hand Rule B to the wrong signal and could
+  // show a night as blocked that the user most recently tapped as free —
+  // the exact "heatmap lies" failure A2 is about. Regression test in
+  // tests/services/signals.test.ts.
+  const byUser = new Map<string, DatedSignal[]>();
   for (const signal of signals) {
     if (signal.groupId !== null && signal.groupId !== groupId) continue; // another group's override
+    const dated: DatedSignal = { signal, submittedMs: new Date(signal.submittedAt).getTime() };
     const bucket = byUser.get(signal.userId);
-    if (bucket) bucket.push(signal);
-    else byUser.set(signal.userId, [signal]);
+    if (bucket) bucket.push(dated);
+    else byUser.set(signal.userId, [dated]);
   }
 
   const result: ResolvedSignalMap = new Map();
 
   for (const [userId, userSignals] of byUser) {
     // Rule A: per week_start_date, a scoped signal shadows the global one.
-    const scopedByWeek = new Map<string, SignalWithNights>();
-    const globalByWeek = new Map<string, SignalWithNights>();
+    const scopedByWeek = new Map<string, DatedSignal>();
+    const globalByWeek = new Map<string, DatedSignal>();
     for (const s of userSignals) {
-      const target = s.groupId === null ? globalByWeek : scopedByWeek;
-      const existing = target.get(s.weekStartDate);
+      const target = s.signal.groupId === null ? globalByWeek : scopedByWeek;
+      const existing = target.get(s.signal.weekStartDate);
       // Two signals for the same user/group/week shouldn't exist (INV-8 for
       // global; a unique index for scoped) — if it somehow does, keep the
       // more recent one rather than throwing in a read path.
-      if (!existing || existing.submittedAt < s.submittedAt) {
-        target.set(s.weekStartDate, s);
+      if (!existing || existing.submittedMs < s.submittedMs) {
+        target.set(s.signal.weekStartDate, s);
       }
     }
     const weeks = new Set([...scopedByWeek.keys(), ...globalByWeek.keys()]);
@@ -74,11 +92,10 @@ export function resolveSignals(input: {
     // Rule B: newest submission wins per date. Sorting once and then taking
     // the first claim per date is equivalent to, but cheaper than, comparing
     // submittedAt on every (date) collision individually.
-    effectiveSignals.sort((a, b) => (a.submittedAt < b.submittedAt ? 1 : -1));
+    effectiveSignals.sort((a, b) => b.submittedMs - a.submittedMs);
 
     const resolvedNights = new Map<string, ResolvedNight>();
-    for (const signal of effectiveSignals) {
-      const submittedMs = new Date(signal.submittedAt).getTime();
+    for (const { signal, submittedMs } of effectiveSignals) {
       for (const night of signal.nights) {
         if (resolvedNights.has(night.date)) continue; // a more recent signal already claimed this date
 
