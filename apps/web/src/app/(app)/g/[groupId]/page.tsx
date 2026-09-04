@@ -3,17 +3,10 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Heatmap } from '@/components/heatmap/Heatmap';
+import { LIVE_THRESHOLD } from '@overlap/shared';
 import { copy, fillTemplate } from '@/lib/copy';
 import { trpc } from '@/lib/trpc/client';
 import { JoinCodeCard } from './JoinCodeCard';
-
-// A group is "live" at 3+ members *with current signals* (master doc §2.5,
-// and Sprint 2's DoD: "Below 3 signalled members, group shows
-// belowThreshold copy, not a broken grid"). Note this counts signals, not
-// memberships — an earlier version of this screen keyed off member count,
-// which is a different and wronger thing: five people who joined and never
-// signalled is still an empty heatmap.
-const SIGNALLED_NEEDED = 3;
 
 export default function GroupHomePage() {
   const params = useParams<{ groupId: string }>();
@@ -68,7 +61,9 @@ export default function GroupHomePage() {
         {overlap && !isLive && (
           <div className="rounded-[var(--radius)] border border-border bg-surface px-4 py-6 text-center text-text-muted">
             {fillTemplate(copy.belowThreshold, {
-              n: Math.max(SIGNALLED_NEEDED - overlap.signalledCount, 0),
+              // Counts signals, not memberships: five people who joined and
+              // never signalled is still an empty heatmap.
+              n: Math.max(LIVE_THRESHOLD - overlap.signalledCount, 0),
             })}
           </div>
         )}
@@ -113,7 +108,7 @@ export default function GroupHomePage() {
           action that actually exists, and the one the group needs before a
           heatmap can say anything. Swap it back at T11. */}
       <Link
-        href="/signal"
+        href={`/signal?from=${group.id}`}
         className="fixed bottom-6 right-6 rounded-[var(--radius)] bg-accent px-4 py-3 text-white shadow-lg"
       >
         {overlap?.signalledCount ? 'Update my signal' : 'Send my signal'}

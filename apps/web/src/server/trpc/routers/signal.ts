@@ -1,4 +1,4 @@
-import { signalSubmitInputSchema } from '@overlap/shared';
+import { HORIZON_WEEKS, signalSubmitInputSchema } from '@overlap/shared';
 import { TRPCError } from '@trpc/server';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { appUser, signal, signalNight } from '@/server/db/schema';
@@ -8,8 +8,6 @@ import {
   weekStartFor,
 } from '@/lib/dateUtils';
 import { createTRPCRouter, protectedProcedure } from '../trpc';
-
-const HORIZON_WEEKS = 3; // this week + the two ahead (master doc §2.2, Rule 1)
 
 /**
  * engineering-spec.md §5's signal.* surface. signal.getDraft (pre-fill from

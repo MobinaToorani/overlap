@@ -34,20 +34,18 @@ import type {
   Vibe,
   VibeBand,
 } from '@overlap/shared';
-import { HIDDEN_VIBE, VIBES } from '@overlap/shared';
+import { HIDDEN_VIBE, HORIZON_DAYS, LIVE_THRESHOLD, VIBES } from '@overlap/shared';
 import { copy, fillTemplate, ordinal } from '@/lib/copy';
 import { dayOfMonth, horizonDates, weekdayName } from '@/lib/dateUtils';
 
 // NightOverlap.horizonWeek is derived as floor(idx / 7) and typed 0 | 1 | 2,
-// so this must stay <= 21. The master doc's risk table contemplates
+// so HORIZON_DAYS must stay <= 21. The master doc's risk table contemplates
 // *shrinking* the horizon to two weeks if the Signal takes too long to
 // complete — that direction is safe. Growing it is not: 28 would produce a
 // 3 wearing a 0 | 1 | 2 type, with no error anywhere. Widen HorizonWeek in
 // packages/shared first if that ever happens.
-const HORIZON_LENGTH = 21;
 const CONFIRMED_COHORT_FLOOR = 5; // INV-3
 const BAND_ELIGIBLE_FLOOR = 2;
-const LIVE_THRESHOLD = 3;
 
 const VISIBLE_VIBES = VIBES.filter((v) => v !== HIDDEN_VIBE);
 
@@ -93,7 +91,7 @@ export function computeOverlap(input: {
   today: Date;
 }): GroupOverlap {
   const { groupId, members, resolved, signalledUserIds, today } = input;
-  const dates = horizonDates(today, HORIZON_LENGTH);
+  const dates = horizonDates(today, HORIZON_DAYS);
   const dateIndex = new Map(dates.map((d, i) => [d, i]));
 
   const confirmedMembers: Member[][] = dates.map(() => []);

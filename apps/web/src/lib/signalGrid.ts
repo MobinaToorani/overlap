@@ -1,7 +1,6 @@
+import { DAYS_PER_WEEK, HORIZON_WEEKS } from '@overlap/shared';
 import { addDays } from './dateUtils';
 
-export const HORIZON_WEEKS = 3; // this week + the two ahead (master doc §2.2, Rule 1)
-export const DAYS_PER_WEEK = 7;
 
 /**
  * The three week-aligned rows of seven dates the Signal grid offers,

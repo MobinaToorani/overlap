@@ -2,7 +2,7 @@
 
 import type { NightOverlap } from '@overlap/shared';
 import { dayOfMonth, weekdayName } from '@/lib/dateUtils';
-import { ordinal } from '@/lib/copy';
+import { copy, ordinal } from '@/lib/copy';
 import { heatStep } from '@/lib/heat';
 
 /**
@@ -101,7 +101,9 @@ export function Heatmap({ nights }: { nights: NightOverlap[] }) {
                 'repeating-linear-gradient(45deg, var(--soft-stroke) 0 2px, transparent 2px 6px)',
             }}
           />
-          no conflict, not confirmed
+          {/* The spec's own wording for this state (§9's softHint) rather
+              than a paraphrase — copy.ts is where the voice lives. */}
+          <span title={copy.softHint}>no conflict, not confirmed</span>
         </span>
       </div>
     </div>

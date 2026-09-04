@@ -5,6 +5,25 @@
  * Source of truth for the shapes below: docs/engineering-spec.md §3-4.
  */
 
+/**
+ * Domain constants that both the server and the client have to agree on.
+ * They live here rather than in either side's code because each was
+ * previously defined twice — and two copies of a rule is one drift away
+ * from the UI saying "3 of you" while the engine gates on 4.
+ */
+
+/** The Signal's rolling horizon: this week plus the two ahead (master doc §2.2, Rule 1). */
+export const HORIZON_WEEKS = 3;
+export const DAYS_PER_WEEK = 7;
+export const HORIZON_DAYS = HORIZON_WEEKS * DAYS_PER_WEEK;
+
+/**
+ * A group is "live" at 3+ members with current signals (master doc §2.5 —
+ * lowered from 4 by audit finding A10). Below this the group sees
+ * `belowThreshold` copy instead of a grid.
+ */
+export const LIVE_THRESHOLD = 3;
+
 export const VIBES = [
   'down_for_anything',
   'low_key',

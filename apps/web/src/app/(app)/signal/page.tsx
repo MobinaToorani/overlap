@@ -1,7 +1,7 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { VIBES, type Vibe } from '@overlap/shared';
 import { track } from '@/lib/analytics';
 import { copy } from '@/lib/copy';
@@ -12,8 +12,14 @@ import { dayOfMonth, weekdayName } from '@/lib/dateUtils';
 /** Sun…Sat initials for the compact rows. */
 const DAY_INITIALS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-export default function SignalPage() {
+function SignalForm() {
   const router = useRouter();
+  // Which group's heatmap to reveal afterwards. The Signal itself is
+  // global (master doc §2.2, Rule 3) — this only decides where the payoff
+  // is shown, not what gets submitted.
+  const searchParams = useSearchParams();
+  const fromGroupId = searchParams.get('from');
+  const myGroups = trpc.group.listMine.useQuery(undefined, { enabled: !fromGroupId });
   const current = trpc.signal.getCurrent.useQuery();
   const utils = trpc.useUtils();
 
@@ -47,9 +53,15 @@ export default function SignalPage() {
         horizon_weeks_touched: countWeeksTouched(current.data?.weekStartDate, selected),
       });
       await utils.signal.getCurrent.invalidate();
-      // The heatmap reveal is the payoff that ends the ritual (master doc
-      // §2.3c). It lives at the group home, which T7 builds out.
-      router.push('/g');
+      // Submitting must reveal the heatmap — that reveal IS the reward
+      // that ends the ritual (master doc §2.3c: "a ritual that ends in
+      // 'thanks, saved' is dead within three weeks"; §7.3 calls it the
+      // most polished moment in the app). So land on a group home, not the
+      // group list: prefer the group the user came from, otherwise their
+      // first one, and only fall back to the list if they have none.
+      await utils.group.overlap.invalidate();
+      const destination = fromGroupId ?? myGroups.data?.[0]?.id;
+      router.push(destination ? `/g/${destination}` : '/g');
     },
   });
 
@@ -209,4 +221,13 @@ function localToday(): string {
     month: '2-digit',
     day: '2-digit',
   }).format(new Date());
+}
+
+export default function SignalPage() {
+  // useSearchParams needs a Suspense boundary in the App Router.
+  return (
+    <Suspense fallback={<Centered>Loading…</Centered>}>
+      <SignalForm />
+    </Suspense>
+  );
 }
