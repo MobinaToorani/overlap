@@ -260,3 +260,85 @@ describe.skipIf(!DATABASE_URL)('group + signal routers against live Postgres', (
     }
   });
 });
+
+describe.skipIf(!DATABASE_URL)('the full Signal → overlap chain against live Postgres', () => {
+  it('three members signal the same night and the heatmap sees it', async () => {
+    const { drizzle } = await import('drizzle-orm/postgres-js');
+    const schema = await import('@/server/db/schema');
+    const { appRouter } = await import('@/server/trpc/routers/_app');
+    const { createTestContext, fakeUser } = await import('../trpc/helpers');
+    const { addDays, localDateInTimeZone, weekStartFor } = await import('@/lib/dateUtils');
+
+    const db = drizzle(sql!, { schema });
+    const ROLLBACK = Symbol('rollback');
+
+    // A night inside the current three-week horizon, computed the same way
+    // signal.submit will, so the submission isn't rejected as out of range.
+    const weekStart = weekStartFor(localDateInTimeZone(new Date(), 'America/Toronto'));
+    const target = addDays(weekStart, 9); // week 1 — safely not in the past
+
+    try {
+      await db.transaction(async (tx) => {
+        const seed = async (phone: string) => {
+          const [row] = await tx.execute<{ id: string }>(
+            sqlTag`INSERT INTO auth.users (id, instance_id, aud, role, phone, created_at, updated_at)
+                   VALUES (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
+                           'authenticated', 'authenticated', ${phone}, now(), now())
+                   RETURNING id`,
+          );
+          return (row as unknown as { id: string }).id;
+        };
+        const callerFor = (userId: string) =>
+          appRouter.createCaller(
+            createTestContext({
+              user: fakeUser(userId),
+              db: (() => tx) as unknown as ReturnType<typeof createTestContext>['db'],
+            }),
+          );
+
+        const ids = [
+          await seed('+15195550201'),
+          await seed('+15195550202'),
+          await seed('+15195550203'),
+        ];
+
+        const group = await callerFor(ids[0]!).group.create({ name: 'Heatmap Crew' });
+        await callerFor(ids[1]!).group.joinByCode({ joinCode: group.joinCode });
+        await callerFor(ids[2]!).group.joinByCode({ joinCode: group.joinCode });
+
+        // Every submit goes through guard_confirmed_free for real.
+        for (const id of ids) {
+          await callerFor(id).signal.submit({
+            vibe: 'down_for_anything',
+            nights: [{ date: target, state: 'confirmed_free' }],
+          });
+        }
+
+        const overlap = await callerFor(ids[0]!).group.overlap({ groupId: group.id });
+
+        expect(overlap.memberCount).toBe(3);
+        expect(overlap.signalledCount).toBe(3);
+        expect(overlap.isLive).toBe(true); // 3 signalled clears the cold-start floor
+
+        const night = overlap.nights.find((n) => n.date === target);
+        expect(night, `expected ${target} within the 21-day horizon`).toBeDefined();
+        expect(night!.confirmedCount).toBe(3);
+        expect(night!.isBestNight).toBe(true);
+        expect(overlap.headline).toContain('3 of 3 free');
+
+        // INV-3: a cohort of 3 is below the floor of 5, so no exact counts.
+        expect(night!.vibeCounts).toBeNull();
+
+        // Re-submitting replaces rather than accumulating (INV-8 upsert).
+        await callerFor(ids[0]!).signal.submit({ vibe: 'slammed', nights: [] });
+        const after = await callerFor(ids[0]!).group.overlap({ groupId: group.id });
+        expect(after.signalledCount).toBe(3); // still signalled, just with no free nights
+        expect(after.nights.find((n) => n.date === target)!.confirmedCount).toBe(2);
+
+        throw ROLLBACK;
+      });
+    } catch (err) {
+      if (err !== ROLLBACK) throw err;
+    }
+  });
+});
