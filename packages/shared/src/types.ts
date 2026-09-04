@@ -72,12 +72,27 @@ export interface Member {
 }
 
 /**
+ * What a night resolves to, which is not the same alphabet as what the
+ * database stores. `lapsed` exists only after resolution: the member did
+ * affirmatively tap this night, and their signal has since aged past the
+ * freshness window.
+ *
+ * Keeping it distinct from `no_known_conflict` matters for honesty, not
+ * bookkeeping. The copy for a soft night reads "no conflict on their
+ * calendar, but they haven't confirmed" — which is false about someone who
+ * confirmed and went stale. A2's whole thesis is that this screen never
+ * misrepresents what a friend said, and misrepresenting them pessimistically
+ * is still misrepresenting them.
+ */
+export type ResolvedNightState = NightState | 'lapsed';
+
+/**
  * A night's state for one member after resolveSignals() has applied
- * global-vs-scoped precedence, overlapping-horizon dedup, and the week-0
- * freshness downgrade. See packages/shared/src/overlap/resolveSignals.ts.
+ * global-vs-scoped precedence, overlapping-horizon dedup, and freshness
+ * decay. See apps/web/src/server/services/signals.ts.
  */
 export interface ResolvedNight {
-  state: NightState;
+  state: ResolvedNightState;
   vibe: Vibe;
 }
 
@@ -89,6 +104,9 @@ export interface NightOverlap {
   horizonWeek: HorizonWeek;
   confirmedCount: number;
   softCount: number;
+  /** Tapped, then went stale. Never scores, but is not the same thing as
+   * "never said anything" — see ResolvedNightState. */
+  lapsedCount: number;
   totalMembers: number;
   vibeBand: VibeBand | null;
   vibeCounts: Partial<Record<Vibe, number>> | null; // null if cohort < 5 (INV-3)

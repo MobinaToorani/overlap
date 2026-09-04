@@ -28,9 +28,21 @@ One ticket in flight at a time — see `docs/agent-prompt.md`'s ground rules. A 
 | T19 | `attendance_prompt` job + one-tap "did you make it" | 5 | ⬜ Not started |
 | T20 | Playwright e2e: signal→heatmap→plan→invite, invite→rsvp→signup | 5 | ⬜ Not started |
 | T21 | Rate limits on every public route (§5.2) — before any real invite link ships | — | ⬜ Not started |
-| T22 | `me.exportData`, `me.deleteAccount`, `group.delete` (PIPEDA) | — | ⬜ Not started |
+| T22 | `me.exportData`, `me.deleteAccount`, `group.delete` (PIPEDA) | — | ⬜ Not started. **Two-stage per ADR-0007/X-18**: a tested manual deletion runbook must exist *before* M4, since the PIPEDA obligation attaches to the first pilot user, not to M6 |
+| T23 | `group.shareCard` — the A10 cold-start artifact (§2.5) | — | ⬜ Not started. Sequenced after T12 to share its OG-image machinery. This is §2.5's answer to the Empty Room Problem, and below-threshold is the *normal* state at pilot start |
+| T24 | One-tap re-confirm for a `lapsed` night (P2) | — | ⬜ Not started. The `lapsed` state ships in the engine and heatmap now; this is the mutation that makes it useful — the highest-intent surface in the product, since the member already said yes to that exact night |
+| T25 | First-run name capture, folded into T4's create/join flow (X-12) | 1 | ⬜ Not started. `display_name` currently defaults to a neutral placeholder; nothing collects a real name, so a pilot group would be seven people called "New member" |
 
-**Stop after T22.** That's v1 — see `agent-prompt.md`.
+**Stop after T25.** That's v1 — see `agent-prompt.md`.
+
+## Struck or deferred (ADR-0007)
+
+Recorded so they are not silently re-adopted, and so "why isn't this built" has an answer:
+
+- **FIX-7 (fortnightly cadence stepdown) — struck.** Not computable from the schema, could not fire during the pilot, and collided with the freshness rule. A8 is reopened as unresolved rather than left as a paper mitigation.
+- **FIX-5 (`overlap_precompute` + Redis cache) — deferred past M5.** Recomputation is trivially fast for five groups of seven; adding a cache-invalidation contract before there is load to justify one is premature.
+- **Apple / CalDAV calendar — out of v1.** Google-only, as §9.3 already permits. Risk accepted: an iPhone-heavy pilot group gets no sync, and falls back to manual night-tapping.
+- **Founder-triggered first Signal — folded into T16**, which owns the dispatcher it needs.
 
 ## Outside the ticket sequence (founder-only)
 

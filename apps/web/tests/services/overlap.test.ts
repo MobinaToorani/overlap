@@ -188,10 +188,13 @@ describe('computeOverlap', () => {
     });
 
     for (const date of [week0Date, week1Date, week2Date]) {
-      const night = result.nights.find((n) => n.date === date)!;
-      expect(night.confirmedCount).toBe(0);
-      expect(night.softCount).toBe(1);
+      expect(result.nights.find((n) => n.date === date)!.confirmedCount).toBe(0);
     }
+    // The tapped night lapsed; the two that were only ever "no known
+    // conflict" stay soft. Same score, different truth about each member.
+    expect(result.nights.find((n) => n.date === week0Date)!.lapsedCount).toBe(1);
+    expect(result.nights.find((n) => n.date === week1Date)!.softCount).toBe(1);
+    expect(result.nights.find((n) => n.date === week2Date)!.softCount).toBe(1);
   });
 
   it('OV-10: a tie between two nights is broken by the earlier date', () => {
@@ -255,41 +258,45 @@ describe('computeOverlap headline wording', () => {
 
   it('gets the ordinal right for a 1st, not "the 1th"', () => {
     // 2026-09-01 is a Tuesday.
-    const resolved: ResolvedSignalMap = new Map([
-      [
-        'a',
+    const resolved: ResolvedSignalMap = new Map(
+      ['a', 'b', 'c'].map((id) => [
+        id,
         new Map([['2026-09-01', { state: 'confirmed_free' as const, vibe: 'low_key' as const }]]),
-      ],
-      [
-        'b',
-        new Map([['2026-09-01', { state: 'confirmed_free' as const, vibe: 'low_key' as const }]]),
-      ],
-    ]);
+      ]),
+    );
     const result = computeOverlap({
       groupId: 'g1',
-      members: members(['a', 'b']),
+      members: members(['a', 'b', 'c']),
       resolved,
-      signalledUserIds: new Set(['a', 'b']),
+      signalledUserIds: new Set(['a', 'b', 'c']),
       today: new Date('2026-08-30T12:00:00.000Z'),
     });
     expect(result.headline).toContain('Tuesday the 1st');
   });
 
   it('reads naturally for each band, including mixed', () => {
+    // Cohorts of 3: the band floor is 3, not 2 — at two members the band
+    // discloses both their vibes rather than aggregating them (P3 / A5).
+    expect(headlineFor(['down_for_anything', 'down_for_anything', 'down_for_anything'])).toBe(
+      'Thursday the 17th — 3 of 7 free. The group is leaning expansive.',
+    );
+    expect(headlineFor(['low_key', 'slammed', 'low_key'])).toBe(
+      'Thursday the 17th — 3 of 7 free. The group is leaning low-key.',
+    );
+    expect(headlineFor(['down_for_anything', 'low_key', 'broke'])).toBe(
+      'Thursday the 17th — 3 of 7 free. The vibe is split.',
+    );
+  });
+
+  it('withholds the band below a cohort of three (P3)', () => {
     expect(headlineFor(['down_for_anything', 'down_for_anything'])).toBe(
-      'Thursday the 17th — 2 of 7 free. The group is leaning expansive.',
-    );
-    expect(headlineFor(['low_key', 'slammed'])).toBe(
-      'Thursday the 17th — 2 of 7 free. The group is leaning low-key.',
-    );
-    expect(headlineFor(['down_for_anything', 'low_key'])).toBe(
-      'Thursday the 17th — 2 of 7 free. The vibe is split.',
+      'Thursday the 17th — 2 of 7 free',
     );
   });
 
   it('omits the band clause entirely when every confirmed member is broke (INV-4)', () => {
     // 'broke' can't produce a band, so the headline falls back to the plain
     // template — and says nothing that could reveal who is broke.
-    expect(headlineFor(['broke', 'broke'])).toBe('Thursday the 17th — 2 of 7 free');
+    expect(headlineFor(['broke', 'broke', 'broke'])).toBe('Thursday the 17th — 3 of 7 free');
   });
 });

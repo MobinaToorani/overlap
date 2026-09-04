@@ -80,7 +80,8 @@ describe('resolveSignals', () => {
     });
 
     const resolved = resolveSignals({ signals: [signal], groupId: GROUP, now: TODAY });
-    expect(resolved.get('a')!.get(d)!.state).toBe('no_known_conflict'); // downgraded
+    // 'lapsed', not 'no_known_conflict': they tapped it, it aged out.
+    expect(resolved.get('a')!.get(d)!.state).toBe('lapsed');
 
     const overlap = computeOverlap({
       groupId: GROUP,
@@ -90,8 +91,9 @@ describe('resolveSignals', () => {
       today: TODAY,
     });
     const night = overlap.nights.find((n) => n.date === d)!;
-    expect(night.confirmedCount).toBe(0);
-    expect(night.softCount).toBe(1);
+    expect(night.confirmedCount).toBe(0); // excluded from scoring either way
+    expect(night.lapsedCount).toBe(1);
+    expect(night.softCount).toBe(0); // never conflated with "said nothing"
   });
 
   it('RS-4: a user with no signal at all contributes to memberCount but not confirmed/soft counts', () => {
@@ -184,7 +186,7 @@ describe('freshness decay across the whole horizon', () => {
     const resolved = resolveSignals({ signals: [signal], groupId: GROUP, now });
 
     for (const date of ['2026-09-10', '2026-09-17', '2026-09-24']) {
-      expect(resolved.get('a')!.get(date)!.state).toBe('no_known_conflict');
+      expect(resolved.get('a')!.get(date)!.state).toBe('lapsed');
     }
 
     const overlap = computeOverlap({
@@ -196,7 +198,7 @@ describe('freshness decay across the whole horizon', () => {
     });
     const night = overlap.nights.find((n) => n.date === '2026-09-24')!;
     expect(night.confirmedCount).toBe(0); // faded out of the count
-    expect(night.softCount).toBe(1); // still visible, at reduced weight
+    expect(night.lapsedCount).toBe(1); // still visible, and still honest about having said yes
     expect(overlap.headline).toBeNull();
   });
 

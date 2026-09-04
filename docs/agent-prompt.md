@@ -95,13 +95,18 @@ Work in this order. Do not skip ahead.
       unit tests. Build this BEFORE any UI that consumes it.
   T6  Signal modal: vibe tap, three-week night grid, optional note, submit.
       No keyboard required for the core path. Instrument seconds_to_complete.
+      INCLUDES signal.getDraft with prior-signal pre-fill for weeks 1-2 —
+      moved here from T10 (ADR-0007, X-19). Without it the horizon costs 21
+      taps instead of ~9 and the ten-second budget, which IS the retention
+      mechanic, is blown. Prior-signal pre-fill has no calendar dependency.
   T7  Heatmap UI. Confirmed vs soft must be visually distinct at a glance.
       Headline text from confirmed members only. Below-threshold empty state.
   T8  Python worker skeleton on Fly.io, healthcheck, shared secret auth.
   T9  Google Calendar OAuth (FreeBusy scope ONLY) + calendar_sync job.
       Disconnect must purge busy_block immediately.
-  T10 Signal draft pre-fill from busy_block and prior week — remembering INV-1:
-      this can only remove nights or mark them unconfirmed.
+  T10 Extend signal.getDraft with busy_block as a SECOND source (prior-signal
+      pre-fill already shipped in T6). INV-1 unchanged: this can only remove
+      nights or mark them unconfirmed, never assert one.
   T11 Plan creation from a heatmap night. Capture is_home_hang.
   T12 Public invite page /p/[slug]: unauthenticated, SSR, edge-cached,
       OG image generation. Target LCP < 1s on throttled 4G. This page is the

@@ -144,12 +144,14 @@ CREATE TABLE grp (
   created_by   uuid NOT NULL REFERENCES app_user(id),
   signal_dow   smallint NOT NULL DEFAULT 0,   -- 0 = Sunday
   signal_hour  smallint NOT NULL DEFAULT 19,
-  -- FIX-7: A8 stepdown had no trigger condition. Explicit rule:
-  --   step DOWN to 2 after 3 consecutive weeks with group completion < 40%
-  --                  AND zero plans created
-  --   step UP to 1 immediately on any plan creation
-  --   never step below 2; a group at 2 with 6 weeks of silence is dormant,
-  --   not a candidate for further reduction
+  -- FIX-7 was STRUCK 2026-09-04 (ADR-0007, coherence audit X-1). Its trigger
+  -- condition needed per-group weekly completion history that no table holds
+  -- and no ticket adds, it could not fire inside a four-week pilot, and it
+  -- collided with §4.0's freshness rule: a fortnightly group's confirmations
+  -- would all expire mid-cycle, blanking the heatmap for half of every cycle.
+  -- A8 is reopened as unresolved rather than left as a paper mitigation.
+  -- The column stays; nothing reads or writes it. If A8 is ever revisited,
+  -- §4.0's freshness window MUST become cadence-aware in the same change.
   cadence_weeks smallint NOT NULL DEFAULT 1 CHECK (cadence_weeks IN (1,2)),
   join_code    text UNIQUE NOT NULL,  -- FIX-12: >=10 chars from a 32-char
                                      -- unambiguous alphabet (no 0/O/1/I).
@@ -532,7 +534,7 @@ group.delete             ({ groupId })                        → { ok }
 
 | Job | Schedule | Behaviour |
 |---|---|---|
-| `calendar_sync` | Every 6h per connected user | Google FreeBusy for next 21 days → upsert `busy_block`. Writes `signal_night` only as `blocked`/`no_known_conflict` with `written_by='sync'` |
+| `calendar_sync` | Every 6h per connected user | Google FreeBusy for next 21 days → **replace** `busy_block` for the fetched window (delete-then-insert in one transaction; there is no natural key to upsert on — X-10). **Writes `busy_block` only.** It does not write `signal_night`: that path is structurally impossible, since `signal_night.signal_id` is NOT NULL and a soft night would need a parent signal, which the non-signalling members it describes do not have. Pre-fill is a read path — `signal.getDraft` (ADR-0007, X-5) |
 | `signal_dispatch` | Hourly | For each group, find members at local `signal_hour` on `signal_dow` with no signal for this `week_start_date`. Respect `cadence_weeks`. Route through the dispatcher. Idempotency key: `signal:{user_id}:{week_start_date}` |
 | `overlap_precompute` | On signal write **and at 00:05 group-local daily** | Recompute and cache `overlap:{group_id}`. **FIX-5: TTL must expire at the next local midnight, not a fixed 6h.** Freshness downgrades (§4.0) are date-dependent, so a 6h TTL set at 22:00 would serve yesterday's confirmed nights well into the next day |
 | `nudge_evaluator` | Daily 17:00 local | If ≥3 confirmed free on an upcoming night, no plan exists, and no poke sent this group-week → dispatch to rotating member |
@@ -709,6 +711,15 @@ notification_dropped{ user_id, kind, reason }
 ---
 
 ## 12. Definition of done (per sprint)
+
+> **Two gates, not one (ADR-0007, X-20).** Each box below is either
+> **code-complete** (built, unit + integration tested, merged — blocks the next
+> ticket) or **verified-live** (exercised against real infrastructure on a real
+> device — blocks *the pilot*, not the next ticket). Sprints 1 and 2 are
+> code-complete while their verified-live boxes wait on Twilio, and work
+> correctly proceeds past them. The rule that keeps this honest: **no
+> verified-live box may still be open when M4 (pilot start) is declared.**
+> Open ones are tracked in `implementation-audit.md`'s Open Items table.
 
 **Sprint 1 — Foundations**
 - [ ] `app_user.id` references `auth.users(id)`; a verified OTP produces exactly one app_user row (FIX-1)

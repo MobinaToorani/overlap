@@ -25,11 +25,13 @@ import { heatStep } from '@/lib/heat';
 function NightCell({ night }: { night: NightOverlap }) {
   const step = heatStep(night.confirmedCount);
   const hasSoft = night.softCount > 0;
+  const hasLapsed = night.lapsedCount > 0;
 
   const label =
     `${weekdayName(night.date)} the ${ordinal(dayOfMonth(night.date))}: ` +
     `${night.confirmedCount} of ${night.totalMembers} confirmed free` +
-    (hasSoft ? `, ${night.softCount} unconfirmed` : '') +
+    (hasLapsed ? `, ${night.lapsedCount} said yes earlier but not lately` : '') +
+    (hasSoft ? `, ${night.softCount} no known conflict` : '') +
     (night.isBestNight ? ' — best night' : '');
 
   return (
@@ -61,6 +63,12 @@ function NightCell({ night }: { night: NightOverlap }) {
       {/* The accessible channel: the count itself, always present. */}
       <span className="relative text-sm font-medium text-text">{night.confirmedCount}</span>
 
+      {/* Lapsed reads as an outline, not a hatch: these people did answer,
+          and the hatch means "never said anything". Distinct glyph, distinct
+          claim. */}
+      {hasLapsed && (
+        <span className="relative text-[10px] text-vibe-lowkey">↺{night.lapsedCount}</span>
+      )}
       {hasSoft && (
         <span className="relative text-[10px] text-text-muted">+{night.softCount}</span>
       )}
@@ -104,6 +112,10 @@ export function Heatmap({ nights }: { nights: NightOverlap[] }) {
           {/* The spec's own wording for this state (§9's softHint) rather
               than a paraphrase — copy.ts is where the voice lives. */}
           <span title={copy.softHint}>no conflict, not confirmed</span>
+        </span>
+        <span className="flex items-center gap-1">
+          <span aria-hidden className="text-vibe-lowkey">↺</span>
+          <span title={copy.lapsedHint}>said yes, needs re-confirming</span>
         </span>
       </div>
     </div>

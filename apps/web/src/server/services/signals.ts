@@ -14,9 +14,11 @@
  *   week's signal covers 14 of the same dates. For any date, the night from
  *   the most recently submitted signal wins. Deduplicate by (user_id, date).
  *
- *   Freshness — a `confirmed_free` night in week 0 of a signal submitted
- *   more than 7 days ago is stale and is downgraded to `no_known_conflict`
- *   at read time (there is no expiry job/column; decay is computed here).
+ *   Freshness — once a signal is more than 7 days old, none of its
+ *   confirmations still count as a hard yes, whichever of its three weeks
+ *   they sat in. They downgrade to `lapsed`, which is distinct from
+ *   `no_known_conflict`: the member did tap the night, and saying otherwise
+ *   would misdescribe them. No expiry job, no column — decay is read-time.
  *
  * Complexity: let N be the total number of nights across all signals passed
  * in. Grouping by user and by week is O(N) (a handful of weeks per user —
@@ -28,8 +30,8 @@
  * since resolution can't skip a night without reading its date and state.
  */
 import type {
-  NightState,
   ResolvedNight,
+  ResolvedNightState,
   ResolvedSignalMap,
   SignalWithNights,
 } from '@overlap/shared';
@@ -111,9 +113,12 @@ export function resolveSignals(input: {
         // full fortnight — a two-week-old guess presented as a friend
         // saying yes, which is exactly the over-reporting audit finding A2
         // exists to prevent. Both documents now describe the rule below.
-        let state: NightState = night.state;
+        // Downgraded to `lapsed`, not `no_known_conflict`: this member did
+        // tap the night, so collapsing it into "never said anything" would
+        // discard true information and describe them falsely.
+        let state: ResolvedNightState = night.state;
         if (state === 'confirmed_free' && nowMs - submittedMs > FRESHNESS_WINDOW_MS) {
-          state = 'no_known_conflict';
+          state = 'lapsed';
         }
         resolvedNights.set(night.date, { state, vibe: signal.vibe });
       }

@@ -30,6 +30,9 @@ export const copy = {
     mixed: 'The vibe is split.',
   },
   softHint: "No conflict on their calendar, but they haven't confirmed.",
+  // Deliberately not softHint. They DID confirm; it aged out. Telling them
+  // otherwise is the pessimistic half of the A2 failure.
+  lapsedHint: 'They said yes to this night, but not in the last week.',
   belowThreshold: 'Overlap works once 3 of you are in. {n} to go.',
   noOverlap: "Nothing lines up in the next three weeks. That's useful to know too.",
   signalledCount: '{n} of {m} signalled',

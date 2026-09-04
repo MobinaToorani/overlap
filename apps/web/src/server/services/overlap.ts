@@ -45,7 +45,16 @@ import { dayOfMonth, horizonDates, weekdayName } from '@/lib/dateUtils';
 // 3 wearing a 0 | 1 | 2 type, with no error anywhere. Widen HorizonWeek in
 // packages/shared first if that ever happens.
 const CONFIRMED_COHORT_FLOOR = 5; // INV-3
-const BAND_ELIGIBLE_FLOOR = 2;
+// Two different thresholds that were briefly one constant, which silently
+// raised the headline floor when the band floor moved. Keeping them apart:
+//
+//   HEADLINE_FLOOR — §4's algorithm: a headline appears at |confirmed| >= 2.
+//   BAND_FLOOR     — P3/A5: the vibe band needs a cohort of 3. At two, "the
+//                    group is leaning low-key" discloses both members' vibes
+//                    to anyone who knows who was free, which is disclosure
+//                    with extra steps rather than aggregation.
+const HEADLINE_FLOOR = 2;
+const BAND_FLOOR = 3;
 
 const VISIBLE_VIBES = VIBES.filter((v) => v !== HIDDEN_VIBE);
 
@@ -97,6 +106,7 @@ export function computeOverlap(input: {
   const confirmedMembers: Member[][] = dates.map(() => []);
   const vibeTally: Record<Vibe, number>[] = dates.map(() => emptyVibeTally());
   const softCounts: number[] = new Array(dates.length).fill(0);
+  const lapsedCounts: number[] = new Array(dates.length).fill(0);
 
   for (const member of members) {
     const nights = resolved.get(member.userId);
@@ -110,8 +120,13 @@ export function computeOverlap(input: {
         vibeTally[idx]![night.vibe] += 1;
       } else if (night.state === 'no_known_conflict') {
         softCounts[idx]! += 1;
+      } else if (night.state === 'lapsed') {
+        // Tapped, then went stale. Scores exactly as little as soft does
+        // (INV-2), but is counted apart so the UI can tell the truth about
+        // which of the two it is.
+        lapsedCounts[idx]! += 1;
       }
-      // 'blocked' contributes to neither confirmed nor soft.
+      // 'blocked' contributes to neither.
     }
   }
 
@@ -138,13 +153,14 @@ export function computeOverlap(input: {
 
     const vibeCounts = confirmedCount >= CONFIRMED_COHORT_FLOOR ? visibleTally : null; // INV-3
     const vibeBand =
-      confirmedCount >= BAND_ELIGIBLE_FLOOR ? deriveBand(visibleTally) : null;
+      confirmedCount >= BAND_FLOOR ? deriveBand(visibleTally) : null;
 
     return {
       date,
       horizonWeek: Math.floor(idx / 7) as 0 | 1 | 2,
       confirmedCount,
       softCount: softCounts[idx]!,
+      lapsedCount: lapsedCounts[idx]!,
       totalMembers: members.length,
       vibeBand,
       vibeCounts,
@@ -156,7 +172,7 @@ export function computeOverlap(input: {
   if (bestIdx >= 0) {
     nights[bestIdx]!.isBestNight = true;
     const best = nights[bestIdx]!;
-    if (best.confirmedCount >= BAND_ELIGIBLE_FLOOR) {
+    if (best.confirmedCount >= HEADLINE_FLOOR) {
       const vars = {
         weekday: weekdayName(best.date),
         day: ordinal(dayOfMonth(best.date)),
