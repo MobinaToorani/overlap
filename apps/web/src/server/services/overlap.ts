@@ -35,7 +35,7 @@ import type {
   VibeBand,
 } from '@overlap/shared';
 import { HIDDEN_VIBE, VIBES } from '@overlap/shared';
-import { copy, fillTemplate } from '@/lib/copy';
+import { copy, fillTemplate, ordinal } from '@/lib/copy';
 import { dayOfMonth, horizonDates, weekdayName } from '@/lib/dateUtils';
 
 // NightOverlap.horizonWeek is derived as floor(idx / 7) and typed 0 | 1 | 2,
@@ -161,12 +161,15 @@ export function computeOverlap(input: {
     if (best.confirmedCount >= BAND_ELIGIBLE_FLOOR) {
       const vars = {
         weekday: weekdayName(best.date),
-        day: dayOfMonth(best.date),
+        day: ordinal(dayOfMonth(best.date)),
         n: best.confirmedCount,
         m: members.length,
       };
       headline = best.vibeBand
-        ? fillTemplate(copy.headlineBand, { ...vars, band: best.vibeBand.replace('_', '-') })
+        ? fillTemplate(copy.headlineBand, {
+            ...vars,
+            bandClause: copy.bandClauses[best.vibeBand],
+          })
         : fillTemplate(copy.headline, vars);
     }
   }

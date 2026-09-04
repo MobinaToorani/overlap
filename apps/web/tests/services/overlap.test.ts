@@ -7,6 +7,7 @@
  * installed; see the skipped test below for why it can't run here.
  */
 import { describe, expect, it } from 'vitest';
+import type { ResolvedSignalMap, Vibe } from '@overlap/shared';
 import { computeOverlap } from '@/server/services/overlap';
 import { resolveSignals } from '@/server/services/signals';
 import { dateAt, makeSignal, member, members, resolvedMapFrom, TODAY } from '../helpers';
@@ -222,5 +223,79 @@ describe('computeOverlap', () => {
     const best = result.nights.filter((n) => n.isBestNight);
     expect(best).toHaveLength(1);
     expect(best[0]!.date).toBe(earlier);
+  });
+});
+
+/**
+ * The headline is the single most user-visible string the engine produces —
+ * the payoff that ends the ritual (master doc §2.3c). Its exact wording was
+ * decided deliberately (ordinal day; a per-band clause so "mixed" isn't
+ * forced through "The group is leaning ___"), so it's pinned here rather
+ * than left to drift.
+ */
+describe('computeOverlap headline wording', () => {
+  const SEPT_15 = new Date('2026-09-15T12:00:00.000Z');
+  const THURSDAY_17TH = '2026-09-17';
+
+  function headlineFor(vibes: Vibe[], memberCount = 7) {
+    const resolved: ResolvedSignalMap = new Map();
+    vibes.forEach((vibe, i) => {
+      resolved.set(
+        `u${i}`,
+        new Map([[THURSDAY_17TH, { state: 'confirmed_free' as const, vibe }]]),
+      );
+    });
+    const groupMembers = Array.from({ length: memberCount }, (_, i) => ({
+      userId: `u${i}`,
+      displayName: `u${i}`,
+      timezone: 'America/Toronto',
+    }));
+    return computeOverlap({
+      groupId: 'g1',
+      members: groupMembers,
+      resolved,
+      signalledUserIds: new Set(vibes.map((_, i) => `u${i}`)),
+      today: SEPT_15,
+    }).headline;
+  }
+
+  it('gets the ordinal right for a 1st, not "the 1th"', () => {
+    // 2026-09-01 is a Tuesday.
+    const resolved: ResolvedSignalMap = new Map([
+      [
+        'a',
+        new Map([['2026-09-01', { state: 'confirmed_free' as const, vibe: 'low_key' as const }]]),
+      ],
+      [
+        'b',
+        new Map([['2026-09-01', { state: 'confirmed_free' as const, vibe: 'low_key' as const }]]),
+      ],
+    ]);
+    const result = computeOverlap({
+      groupId: 'g1',
+      members: members(['a', 'b']),
+      resolved,
+      signalledUserIds: new Set(['a', 'b']),
+      today: new Date('2026-08-30T12:00:00.000Z'),
+    });
+    expect(result.headline).toContain('Tuesday the 1st');
+  });
+
+  it('reads naturally for each band, including mixed', () => {
+    expect(headlineFor(['down_for_anything', 'down_for_anything'])).toBe(
+      'Thursday the 17th — 2 of 7 free. The group is leaning expansive.',
+    );
+    expect(headlineFor(['low_key', 'slammed'])).toBe(
+      'Thursday the 17th — 2 of 7 free. The group is leaning low-key.',
+    );
+    expect(headlineFor(['down_for_anything', 'low_key'])).toBe(
+      'Thursday the 17th — 2 of 7 free. The vibe is split.',
+    );
+  });
+
+  it('omits the band clause entirely when every confirmed member is broke (INV-4)', () => {
+    // 'broke' can't produce a band, so the headline falls back to the plain
+    // template — and says nothing that could reveal who is broke.
+    expect(headlineFor(['broke', 'broke'])).toBe('Thursday the 17th — 2 of 7 free');
   });
 });

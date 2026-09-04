@@ -14,8 +14,21 @@ export const copy = {
     broke: 'Broke this week',
     out_of_town: 'Out of town',
   },
+  // {day} is an ordinal ("17th") — see ordinal() below. engineering-spec.md
+  // §9's literal string had a bare "{day}", but the master doc's own example
+  // (§2.2, "Thursday the 17th — 5 of 7 free") reads the way a person would
+  // actually say it, and that's the one Mobina confirmed.
   headline: '{weekday} the {day} — {n} of {m} free',
-  headlineBand: '{weekday} the {day} — {n} of {m} free. The group is leaning {band}.',
+  headlineBand: '{weekday} the {day} — {n} of {m} free. {bandClause}',
+  // §9 had one template with a "{band}" slot, which forced every band
+  // through "The group is leaning ___" — fine for low-key, but "leaning
+  // mixed" isn't a sentence anyone says. A clause per band lets each read
+  // naturally; low-key keeps §9's exact wording.
+  bandClauses: {
+    expansive: 'The group is leaning expansive.',
+    low_key: 'The group is leaning low-key.',
+    mixed: 'The vibe is split.',
+  },
   softHint: "No conflict on their calendar, but they haven't confirmed.",
   belowThreshold: 'Overlap works once 3 of you are in. {n} to go.',
   noOverlap: "Nothing lines up in the next three weeks. That's useful to know too.",
@@ -35,4 +48,27 @@ export function fillTemplate(template: string, values: Record<string, string | n
   return template.replace(/\{(\w+)\}/g, (match, key: string) =>
     key in values ? String(values[key]) : match,
   );
+}
+
+/**
+ * 17 → "17th", 21 → "21st". Needed because the headline says "the 17th",
+ * and a naive `${day}th` would produce "the 21th" and "the 3th".
+ *
+ * The 11-13 carve-out is the whole trick: they end in 1/2/3 but still take
+ * "th". Only days 1-31 reach this, but the %100 check costs nothing and
+ * keeps the function correct for any number.
+ */
+export function ordinal(n: number): string {
+  const teens = n % 100;
+  if (teens >= 11 && teens <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1:
+      return `${n}st`;
+    case 2:
+      return `${n}nd`;
+    case 3:
+      return `${n}rd`;
+    default:
+      return `${n}th`;
+  }
 }
