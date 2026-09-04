@@ -115,7 +115,7 @@ Resolved-and-applied findings are omitted; see `coherence-audit.md` and ADR-0007
 | X-19 | Sprint 2 DoD needs a Sprint 3 ticket | pre-fill into T6 | T6 | ✅ resequenced; **implementation still owed** |
 | X-28 | `message.archived_at` missing; §2.6 promises archiving | add column or soften the promise | T14 | ⬜ |
 | X-29 | No `--vibe-broke` token | add it, as warm as the others | T6 | ⬜ |
-| X-31 | Kill criteria have a 35–54% dead zone | decide before the pilot | founder | ⬜ |
+| X-31 | Kill criteria have a 35–54% dead zone | decide before the pilot | founder — now an explicit checkbox in `founder-checklist.md` (pilot recruitment) | ⬜ still undecided; it has an owner and a home rather than only a finding |
 | X-32 | Two headline metrics have no event | add `account_created`, `group_created`, `group_joined` + first-touch attribution | T12, T13, T18 | ⬜ **before T12**, or pilot-era invites are unattributable |
 
 ---
