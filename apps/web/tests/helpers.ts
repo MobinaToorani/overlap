@@ -5,7 +5,7 @@ import type {
   SignalWithNights,
   Vibe,
 } from '@overlap/shared';
-import { addDays, horizonDates } from '@/server/services/dateUtils';
+import { addDays, horizonDates } from '@/lib/dateUtils';
 
 /** Fixed "now" so every test is deterministic regardless of when it runs. */
 export const TODAY = new Date('2026-09-03T12:00:00.000Z');

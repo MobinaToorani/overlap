@@ -91,6 +91,23 @@ describe('0000_initial_schema.sql, against a real SQL engine', () => {
     expect(db.many(`SELECT * FROM group_member WHERE group_id = '${groupId}'`)).toHaveLength(0);
   });
 
+  // signal.submit re-submits with `ON CONFLICT (user_id, week_start_date)
+  // WHERE group_id IS NULL DO UPDATE`. Postgres only infers a *partial*
+  // unique index when the conflict target repeats the index predicate; get
+  // it wrong and you get "no unique or exclusion constraint matching the ON
+  // CONFLICT specification" — at runtime, never at compile time, so
+  // typecheck passing tells you nothing here.
+  //
+  // pg-mem cannot check this: its parser has no production for a WHERE
+  // clause on a conflict target at all (it expects DO immediately after the
+  // column list) and rejects the statement as a syntax error, even though
+  // it is valid Postgres. Attempted and backed out during T6 rather than
+  // weakening the assertion into something that would pass without meaning
+  // anything. This is the ADR-0006 boundary showing up in practice.
+  it.todo(
+    "signal.submit's upsert conflict target matches INV-8's partial index (needs real Postgres — pg-mem can't parse ON CONFLICT ... WHERE)",
+  );
+
   it('INV-8: at most one global signal per user per week, but a scoped signal for the same week is unaffected', () => {
     const groupId = randomUUID();
     db.none(`INSERT INTO grp (id, name, created_by, join_code) VALUES ('${groupId}', 'G', '${userId}', 'INV8CODE0001')`);

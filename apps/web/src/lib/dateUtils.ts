@@ -56,13 +56,63 @@ const WEEKDAYS = [
   'Saturday',
 ] as const;
 
-export function weekdayName(date: string): string {
+/** 0 = Sunday … 6 = Saturday, matching grp.signal_dow's convention. */
+export function dayOfWeek(date: string): number {
   const dayIndex = Math.floor(parseIsoDate(date) / MS_PER_DAY) % 7;
   // JS epoch (1970-01-01) was a Thursday (index 4); rebase to Sunday=0.
-  const idx = ((dayIndex + 4) % 7 + 7) % 7;
-  return WEEKDAYS[idx]!; // idx is always 0-6 by construction above
+  return ((dayIndex + 4) % 7 + 7) % 7;
+}
+
+export function weekdayName(date: string): string {
+  return WEEKDAYS[dayOfWeek(date)]!; // dayOfWeek is always 0-6 by construction
 }
 
 export function dayOfMonth(date: string): number {
   return new Date(parseIsoDate(date)).getUTCDate();
+}
+
+/**
+ * What calendar date it currently is for someone in `timeZone`.
+ *
+ * This is the one function here that legitimately involves a timezone, and
+ * it isn't a contradiction of the module rule above: that rule forbids
+ * *reinterpreting an existing date string* through a timezone. This does
+ * the opposite and necessary thing — turns an instant into the calendar
+ * date a specific human is living in, which is the only correct way to
+ * answer "which week is this user signalling for". 'en-CA' is used purely
+ * because it formats as YYYY-MM-DD.
+ */
+export function localDateInTimeZone(instant: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(instant);
+}
+
+/**
+ * The Sunday on or before `date` — a signal's `week_start_date`.
+ * Sunday because grp.signal_dow defaults to 0 (engineering-spec.md §3) and
+ * the ritual is the *Sunday* Signal.
+ */
+export function weekStartFor(date: string): string {
+  return addDays(date, -dayOfWeek(date));
+}
+
+/**
+ * Which week of a signal's own three-week span a night falls in — 0 is the
+ * week the signal was submitted for, 1 and 2 are the two ahead.
+ *
+ * Note this is a different quantity from NightOverlap.horizonWeek, which is
+ * weeks-from-today in the *viewer's* rolling window. Both are called
+ * "horizon week" and both are correct in their own frame: this one is what
+ * signal_night.horizon_week stores, and it's what makes resolveSignals'
+ * freshness rule meaningful ("a week-0 night from a signal submitted more
+ * than 7 days ago is stale") — that rule is about the signal's own week,
+ * not the viewer's.
+ */
+export function horizonWeekFor(weekStartDate: string, nightDate: string): number {
+  const days = (parseIsoDate(nightDate) - parseIsoDate(weekStartDate)) / MS_PER_DAY;
+  return Math.floor(days / 7);
 }

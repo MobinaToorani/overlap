@@ -36,7 +36,7 @@ import type {
 } from '@overlap/shared';
 import { HIDDEN_VIBE, VIBES } from '@overlap/shared';
 import { copy, fillTemplate } from '@/lib/copy';
-import { dayOfMonth, horizonDates, weekdayName } from './dateUtils';
+import { dayOfMonth, horizonDates, weekdayName } from '@/lib/dateUtils';
 
 // NightOverlap.horizonWeek is derived as floor(idx / 7) and typed 0 | 1 | 2,
 // so this must stay <= 21. The master doc's risk table contemplates
