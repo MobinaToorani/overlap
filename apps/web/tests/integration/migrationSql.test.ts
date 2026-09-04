@@ -101,12 +101,9 @@ describe('0000_initial_schema.sql, against a real SQL engine', () => {
   // pg-mem cannot check this: its parser has no production for a WHERE
   // clause on a conflict target at all (it expects DO immediately after the
   // column list) and rejects the statement as a syntax error, even though
-  // it is valid Postgres. Attempted and backed out during T6 rather than
-  // weakening the assertion into something that would pass without meaning
-  // anything. This is the ADR-0006 boundary showing up in practice.
-  it.todo(
-    "signal.submit's upsert conflict target matches INV-8's partial index (needs real Postgres — pg-mem can't parse ON CONFLICT ... WHERE)",
-  );
+  // it is valid Postgres. This is the ADR-0006 boundary showing up in
+  // practice — the assertion now lives in liveDb.test.ts, where it passes
+  // against a real server.
 
   it('INV-8: at most one global signal per user per week, but a scoped signal for the same week is unaffected', () => {
     const groupId = randomUUID();

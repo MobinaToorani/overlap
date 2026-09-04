@@ -113,17 +113,11 @@ describe('computeOverlap', () => {
     expect(result.isLive).toBe(false);
   });
 
-  // OV-6: "Sync attempts confirmed_free → DB throws; assert the exception."
-  // computeOverlap() is a pure function with no database access — INV-1's
-  // real enforcement is the guard_confirmed_free / guard_worker_role
-  // triggers in src/server/db/sql/0001_guard_invariants.sql, which only
-  // exist once a migration has run against a live Postgres. Per the
-  // working agreement ("if you cannot test it, say so rather than claiming
-  // it is handled"): this needs an integration test with a real database
-  // (e.g. testcontainers, or the CI Postgres service) attempting an INSERT
-  // with written_by='sync', state='confirmed_free' and asserting Postgres
-  // raises. Not implemented yet — flagging rather than faking it.
-  it.todo('OV-6: sync attempting confirmed_free throws (needs a live Postgres integration test)');
+  // OV-6 ("Sync attempts confirmed_free → DB throws") lives in
+  // tests/integration/liveDb.test.ts, not here: computeOverlap() is a pure
+  // function with no database access, and INV-1's real enforcement is the
+  // guard_confirmed_free trigger. It passes against the live Supabase
+  // database as of 2026-09-04.
 
   it('OV-7: DST spring-forward boundary in horizon → 21 distinct dates, no duplicate, no gap', () => {
     // 2026-03-08 is the US spring-forward date; a horizon starting a week
