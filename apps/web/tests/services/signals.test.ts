@@ -219,4 +219,86 @@ describe('freshness decay across the whole horizon', () => {
     const resolved = resolveSignals({ signals: [signal], groupId: GROUP, now });
     expect(resolved.get('a')!.get('2026-09-24')!.state).toBe('confirmed_free');
   });
+
+  it('RS-6: past the second cycle the night is dropped, not merely lapsed', () => {
+    // The third stage, and the reason two stages were not enough: `lapsed`
+    // is still *shown*. Without a drop, a member who signalled once in
+    // September stays on the heatmap at reduced weight until the date
+    // itself passes — a fade that never finishes. FIX-13.
+    const signal = makeSignal({
+      userId: 'a',
+      groupId: null,
+      weekStartDate: '2026-09-06',
+      vibe: 'down_for_anything',
+      submittedAt: '2026-09-06T19:00:00.000Z',
+      nights: [{ date: '2026-09-26', state: 'confirmed_free', horizonWeek: 2 }],
+    });
+
+    // 9 days → lapsed, 16 days → dropped. Assert the boundary from both
+    // sides so a change to either threshold fails loudly.
+    const lapsed = resolveSignals({
+      signals: [signal],
+      groupId: GROUP,
+      now: new Date('2026-09-16T12:00:00.000Z'),
+    });
+    expect(lapsed.get('a')!.get('2026-09-26')!.state).toBe('lapsed');
+
+    const dropped = resolveSignals({
+      signals: [signal],
+      groupId: GROUP,
+      now: new Date('2026-09-24T12:00:00.000Z'),
+    });
+    expect(dropped.get('a')!.has('2026-09-26')).toBe(false);
+  });
+
+  it('RS-7: a fortnightly group is not marked stale for answering fortnightly', () => {
+    // X-1's coupling, as a test. FIX-7 steps a quiet group to cadence 2;
+    // a flat 7-day freshness window would then lapse every confirmation
+    // days before the group's next ask even goes out — penalising it for
+    // complying with the cadence the product chose for it.
+    const signal = makeSignal({
+      userId: 'a',
+      groupId: null,
+      weekStartDate: '2026-09-06',
+      vibe: 'down_for_anything',
+      submittedAt: '2026-09-06T19:00:00.000Z',
+      nights: [{ date: '2026-09-18', state: 'confirmed_free', horizonWeek: 1 }],
+    });
+    const now = new Date('2026-09-18T12:00:00.000Z'); // 12 days later
+
+    const weekly = resolveSignals({ signals: [signal], groupId: GROUP, now, cadenceWeeks: 1 });
+    expect(weekly.get('a')!.get('2026-09-18')!.state).toBe('lapsed');
+
+    const fortnightly = resolveSignals({ signals: [signal], groupId: GROUP, now, cadenceWeeks: 2 });
+    expect(fortnightly.get('a')!.get('2026-09-18')!.state).toBe('confirmed_free');
+  });
+
+  it('RS-8: the drop stage clears a stale `blocked` too, not just confirmations', () => {
+    // Decay is about what the system still knows, not only about what it
+    // over-claims. A three-week-old "I'm busy" is no more current than a
+    // three-week-old "I'm free"; keeping it would assert a conflict the
+    // member may no longer have. Silence is the honest state.
+    const signal = makeSignal({
+      userId: 'a',
+      groupId: null,
+      weekStartDate: '2026-09-06',
+      vibe: 'down_for_anything',
+      submittedAt: '2026-09-06T19:00:00.000Z',
+      nights: [{ date: '2026-09-26', state: 'blocked', horizonWeek: 2 }],
+    });
+
+    const fresh = resolveSignals({
+      signals: [signal],
+      groupId: GROUP,
+      now: new Date('2026-09-10T12:00:00.000Z'),
+    });
+    expect(fresh.get('a')!.get('2026-09-26')!.state).toBe('blocked');
+
+    const stale = resolveSignals({
+      signals: [signal],
+      groupId: GROUP,
+      now: new Date('2026-09-24T12:00:00.000Z'),
+    });
+    expect(stale.get('a')!.has('2026-09-26')).toBe(false);
+  });
 });

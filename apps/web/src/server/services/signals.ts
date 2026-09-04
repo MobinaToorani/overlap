@@ -14,11 +14,12 @@
  *   week's signal covers 14 of the same dates. For any date, the night from
  *   the most recently submitted signal wins. Deduplicate by (user_id, date).
  *
- *   Freshness — once a signal is more than 7 days old, none of its
- *   confirmations still count as a hard yes, whichever of its three weeks
- *   they sat in. They downgrade to `lapsed`, which is distinct from
+ *   Rule C (freshness) — confirmations decay in three stages as their signal
+ *   ages, whichever of its three weeks they sat in: hard yes, then `lapsed`
+ *   (shown, doesn't score), then dropped entirely. `lapsed` is distinct from
  *   `no_known_conflict`: the member did tap the night, and saying otherwise
- *   would misdescribe them. No expiry job, no column — decay is read-time.
+ *   would misdescribe them. The windows derive from the group's cadence, not
+ *   a flat week. No expiry job, no column — decay is read-time.
  *
  * Complexity: let N be the total number of nights across all signals passed
  * in. Grouping by user and by week is O(N) (a handful of weeks per user —
@@ -36,7 +37,35 @@ import type {
   SignalWithNights,
 } from '@overlap/shared';
 
-const FRESHNESS_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The two freshness thresholds, derived from how often this group is actually
+ * asked (FIX-13): one ask cycle to lapse, two to drop.
+ *
+ * A flat 7 days would mark a fortnightly group stale for doing exactly what
+ * it was asked to do — the coupling coherence audit X-1 found between FIX-7's
+ * cadence stepdown and the freshness window.
+ *
+ * Today every group is `cadence_weeks = 1`, so `lapseAfterMs` is the flat
+ * seven days it replaces and nothing observable changes. The point is that if
+ * FIX-7's stepdown is ever built it cannot silently start penalising the
+ * groups it steps down: the coupling is expressed in code rather than left as
+ * a note for someone to find.
+ *
+ * No grace period, deliberately. It is tempting to add a day or two of slack
+ * so a Monday answer doesn't flicker, but it would put the weekly threshold
+ * at nine days — landing exactly on RS-3's boundary — and the flicker it
+ * prevents is a night moving to `lapsed`, which is a state the UI shows
+ * rather than hides.
+ */
+export function freshnessThresholds(cadenceWeeks: number): {
+  lapseAfterMs: number;
+  dropAfterMs: number;
+} {
+  const cycleMs = cadenceWeeks * 7 * DAY_MS;
+  return { lapseAfterMs: cycleMs, dropAfterMs: 2 * cycleMs };
+}
 
 /** A signal paired with its submittedAt parsed to an epoch-ms instant, so
  * ordering never depends on how the timestamp string happened to be
@@ -50,9 +79,13 @@ export function resolveSignals(input: {
   signals: SignalWithNights[];
   groupId: string;
   now: Date;
+  /** The group's `cadence_weeks`. Defaults to weekly, which is every group
+   * today — see freshnessThresholds() for why this is a parameter at all. */
+  cadenceWeeks?: number;
 }): ResolvedSignalMap {
-  const { signals, groupId, now } = input;
+  const { signals, groupId, now, cadenceWeeks = 1 } = input;
   const nowMs = now.getTime();
+  const { lapseAfterMs, dropAfterMs } = freshnessThresholds(cadenceWeeks);
 
   // Parse submittedAt ONCE, up front, and compare instants numerically from
   // here on. Comparing the raw ISO strings would be subtly wrong: ISO 8601
@@ -101,23 +134,37 @@ export function resolveSignals(input: {
       for (const night of signal.nights) {
         if (resolvedNights.has(night.date)) continue; // a more recent signal already claimed this date
 
-        // Freshness. A confirmation is only as good as the moment it was
-        // made: once a signal is more than a week old, nothing in it still
-        // counts as a hard "yes", whichever of its three weeks the night
-        // sat in. This is what makes master doc §2.3d's "skip repeatedly
-        // and you fade out of the picture" actually happen.
+        // Freshness, in three stages (FIX-13). A confirmation is only as
+        // good as the moment it was made, and "skip repeatedly and you fade
+        // out of the picture entirely" (master doc §2.3d) cannot be produced
+        // by a single cliff — a two-state model leaves the last answer on
+        // screen at reduced weight forever, which is a fade that never
+        // finishes.
         //
-        // Earlier this only downgraded horizon week 0, per an earlier
+        //   fresh   (< 1 cycle)  the tap stands as a hard confirmation
+        //   lapsed  (< 2 cycles) still shown, no longer scores
+        //   dropped (≥ 2 cycles) gone; the member reads as not having signalled
+        //
+        // Earlier this only downgraded horizon week 0, per a narrower
         // reading of engineering-spec.md §4.0. That left an abandoned
         // signal asserting hard confirmations for its weeks 1 and 2 for a
         // full fortnight — a two-week-old guess presented as a friend
         // saying yes, which is exactly the over-reporting audit finding A2
-        // exists to prevent. Both documents now describe the rule below.
-        // Downgraded to `lapsed`, not `no_known_conflict`: this member did
-        // tap the night, so collapsing it into "never said anything" would
-        // discard true information and describe them falsely.
+        // exists to prevent.
+        //
+        // `lapsed`, not `no_known_conflict`: this member did tap the night,
+        // so collapsing it into "never said anything" would discard true
+        // information and describe them falsely.
+        const ageMs = nowMs - submittedMs;
+
+        // Stage 3 drops the night whatever it said. A signal two cycles old
+        // is not evidence of anything current, and that cuts both ways: a
+        // stale `blocked` asserts a conflict the member may no longer have.
+        // Silence is the honest representation of "we no longer know".
+        if (ageMs > dropAfterMs) continue;
+
         let state: ResolvedNightState = night.state;
-        if (state === 'confirmed_free' && nowMs - submittedMs > FRESHNESS_WINDOW_MS) {
+        if (state === 'confirmed_free' && ageMs > lapseAfterMs) {
           state = 'lapsed';
         }
         resolvedNights.set(night.date, { state, vibe: signal.vibe });

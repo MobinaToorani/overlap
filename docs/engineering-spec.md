@@ -1,7 +1,7 @@
 # Overlap — Engineering Specification
 
-**Version:** 1.2 (post-audit, freshness rule corrected 2026-09-04)
-**Companion to:** `overlap-master-doc.md` v0.3
+**Version:** 1.3 (post-audit; freshness rule corrected and extended to three cadence-derived stages, 2026-09-04)
+**Companion to:** `overlap-master-doc.md` v0.4
 **Audience:** the implementing agent (and future you)
 **Purpose:** remove every decision an agent would otherwise invent
 
@@ -144,14 +144,16 @@ CREATE TABLE grp (
   created_by   uuid NOT NULL REFERENCES app_user(id),
   signal_dow   smallint NOT NULL DEFAULT 0,   -- 0 = Sunday
   signal_hour  smallint NOT NULL DEFAULT 19,
-  -- FIX-7 was STRUCK 2026-09-04 (ADR-0007, coherence audit X-1). Its trigger
-  -- condition needed per-group weekly completion history that no table holds
-  -- and no ticket adds, it could not fire inside a four-week pilot, and it
-  -- collided with §4.0's freshness rule: a fortnightly group's confirmations
-  -- would all expire mid-cycle, blanking the heatmap for half of every cycle.
-  -- A8 is reopened as unresolved rather than left as a paper mitigation.
-  -- The column stays; nothing reads or writes it. If A8 is ever revisited,
-  -- §4.0's freshness window MUST become cadence-aware in the same change.
+  -- FIX-7's STEPDOWN is deferred, not struck (ADR-0007 as amended; X-1).
+  -- Its trigger condition needs per-group weekly completion history that no
+  -- table holds and no ticket adds, and it could not fire inside a four-week
+  -- pilot. A8 is reopened as unresolved rather than left as a paper
+  -- mitigation. Nothing writes this column yet.
+  -- It IS read: §4.0's freshness windows are derived from it (FIX-13), so the
+  -- collision X-1 found — a fortnightly group's confirmations all expiring
+  -- mid-cycle — is now impossible by construction rather than by a promise
+  -- that whoever revives the stepdown will remember to fix freshness too.
+  -- At the default of 1 this is exactly the flat weekly rule it replaced.
   cadence_weeks smallint NOT NULL DEFAULT 1 CHECK (cadence_weeks IN (1,2)),
   join_code    text UNIQUE NOT NULL,  -- FIX-12: >=10 chars from a 32-char
                                      -- unambiguous alphabet (no 0/O/1/I).
@@ -355,16 +357,40 @@ The most important file in the codebase. `apps/web/src/server/services/overlap.t
 
 > **Rule: for any given date, the night from the most recently submitted signal wins.** Deduplicate by `(user_id, date)`, ordered by `signal.submitted_at DESC`, take the first.
 
-**Freshness.** A confirmation is only as good as the moment it was made. Once a signal is more than 7 days old, none of its nights still count as a hard yes — whichever of its three weeks they sat in. Downgrade them:
+**Freshness.** A confirmation is only as good as the moment it was made, and it decays in **three stages** as its signal ages — whichever of its three weeks the night sat in. One *ask cycle* is `cadence_weeks × 7 days`.
 
 ```
-if night.state == 'confirmed_free' and signal.submitted_at < (now - 7 days):
-    treat state as 'no_known_conflict'   # displays, does not score
+age = now - signal.submitted_at
+
+if age > 2 * cycle:                        # stage 3 — dropped
+    omit the night entirely
+elif night.state == 'confirmed_free' and age > cycle:
+    treat state as 'lapsed'                # stage 2 — displays, does not score
 ```
+
+| Stage | Age | State | Behaviour |
+|---|---|---|---|
+| Fresh | < 1 cycle | `confirmed_free` | Scores. A friend said yes and it is still current |
+| Lapsed | 1–2 cycles | `lapsed` | Shown at reduced weight; excluded from `confirmedCount` |
+| Dropped | ≥ 2 cycles | — | Omitted. The member reads as not having signalled |
+
+Two properties of this that are load-bearing:
+
+- **`lapsed` is not `no_known_conflict`.** The member *did* tap the night. Collapsing them into "never said anything" discards true information and describes them falsely — the same misrepresentation A2 exists to prevent, pointed the other way.
+- **Stage 3 drops the night whatever it said,** including `blocked`. A signal two cycles old is not evidence of anything current, and a stale conflict is as much a false assertion as a stale confirmation. Silence is the honest representation of "we no longer know".
 
 This is how progressive decay (master doc §2.3d) is actually implemented. There is no expiry job and no `expires_at` column — decay is a read-time concern, computed here.
 
 > **Corrected 2026-09-04 (v1.2).** This rule previously applied only to `horizon_week == 0`, which contradicted master doc §2.3d ("weeks two and three persist but are marked **unconfirmed** … skip repeatedly and you fade out of the picture entirely"). The narrower rule meant an abandoned signal kept asserting hard confirmations for its weeks 1 and 2 for a full fortnight: someone who tapped a night on the 6th and never returned still showed as *confirmed free* on the 20th. A two-week-old guess presented as a friend saying yes is precisely the over-reporting audit finding **A2** exists to prevent, and it meant skipping had no consequence, defeating §2.3d's decay design. Test **RS-5** covers it.
+
+> **Extended 2026-09-04 (v1.3), per `audit-report.md` FIX-13.** v1.2 had two stages and a flat 7-day window. Both were wrong in the same direction — not enough decay:
+>
+> - **Two stages cannot produce "fade out entirely".** `lapsed` is still *shown*. Without a third stage a member who signalled once in September stays on the heatmap at reduced weight until the date itself passes. That is a fade that never finishes, and §2.3d promises one that does.
+> - **A flat 7 days penalises a fortnightly group for complying.** FIX-7 steps a quiet group to `cadence_weeks = 2`; a flat window would then lapse every confirmation days before that group's next ask even goes out. Coherence audit **X-1** found this coupling; deriving the window from cadence is what discharges it.
+>
+> There is deliberately **no grace period** on either threshold. It is tempting to add a day or two of slack so a Monday answer doesn't flicker, but it would put the weekly threshold at nine days — landing exactly on RS-3's boundary — and the flicker it avoids is a night moving to `lapsed`, a state the UI shows rather than hides.
+>
+> Tests **RS-6**, **RS-7**, **RS-8** cover the three stages, the cadence derivation, and the stale-`blocked` drop respectively.
 >
 > Note the horizon week is no longer consulted here at all. `signal_night.horizon_week` is still stored — it records which week of its own signal a night belonged to, which the analytics event `signal_completed.horizon_weeks_touched` (§11) reports on — but it no longer affects resolution.
 
@@ -376,7 +402,10 @@ This is how progressive decay (master doc §2.3d) is actually implemented. There
 | RS-2 | Two signals from consecutive weeks cover the same date differently | Most recent `submitted_at` wins; exactly one night per user per date |
 | RS-3 | Week-0 `confirmed_free` from a 9-day-old signal | Downgraded to soft; excluded from `confirmedCount` |
 | RS-4 | User has no signal at all | Contributes to `memberCount`, not to `confirmedCount` or `softCount` |
-| RS-5 | Abandoned signal: `confirmed_free` nights in weeks 0, 1 **and** 2, submitted 14 days ago | All three downgraded to soft; `confirmedCount` 0, night still visible, no headline. The member has faded from the picture without being scolded (§2.3d) |
+| RS-5 | Abandoned signal: `confirmed_free` nights in weeks 0, 1 **and** 2, submitted 14 days ago | All three downgraded to `lapsed`; `confirmedCount` 0, night still visible, no headline. The member has faded from the picture without being scolded (§2.3d) |
+| RS-6 | One `confirmed_free` night, read at 10 days and again at 18 days | `lapsed` at 10 days; **absent from the map entirely** at 18. Pins both thresholds from each side |
+| RS-7 | Same 12-day-old signal resolved at `cadence_weeks` 1 and 2 | Weekly → `lapsed`; fortnightly → still `confirmed_free`. A group asked half as often is not stale half as fast (X-1) |
+| RS-8 | A `blocked` night from a signal 18 days old | Dropped, not retained. Decay clears stale conflicts as well as stale confirmations |
 
 ### Signature
 
@@ -732,7 +761,7 @@ notification_dropped{ user_id, kind, reason }
 **Sprint 2 — Signal + Heatmap**
 - [ ] Signal submits in < 10s median on a real phone, no keyboard required
 - [ ] Three-week horizon renders; weeks 1–2 pre-filled from prior signal
-- [ ] All 10 overlap unit tests pass, plus the 5 signal-resolution tests RS-1..RS-5 (FIX-2)
+- [ ] All 10 overlap unit tests pass, plus the 8 signal-resolution tests RS-1..RS-8 (FIX-2, FIX-13)
 - [ ] `resolveSignals()` exists as a separate function and is unit-tested independently of `computeOverlap()`
 - [ ] Confirmed vs soft are visually distinguishable at a glance
 - [ ] Below 3 signalled members, group shows `belowThreshold` copy, not a broken grid

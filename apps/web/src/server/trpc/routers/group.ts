@@ -183,8 +183,12 @@ export const groupRouter = createTRPCRouter({
     // about the group: availability is exactly the data master doc §10
     // promises never leaks between groups.
     const [membership] = await db
-      .select({ userId: groupMember.userId })
+      // cadence_weeks rides along on the membership check rather than costing
+      // a second round trip: resolveSignals derives its freshness windows
+      // from it (FIX-13), so the engine can't be called without it.
+      .select({ userId: groupMember.userId, cadenceWeeks: grp.cadenceWeeks })
       .from(groupMember)
+      .innerJoin(grp, eq(grp.id, groupMember.groupId))
       .where(and(eq(groupMember.groupId, input.groupId), eq(groupMember.userId, ctx.user.id)))
       .limit(1);
     if (!membership) {
@@ -296,7 +300,12 @@ export const groupRouter = createTRPCRouter({
     return computeOverlap({
       groupId: input.groupId,
       members,
-      resolved: resolveSignals({ signals, groupId: input.groupId, now }),
+      resolved: resolveSignals({
+        signals,
+        groupId: input.groupId,
+        now,
+        cadenceWeeks: membership.cadenceWeeks,
+      }),
       signalledUserIds,
       today: now,
     });

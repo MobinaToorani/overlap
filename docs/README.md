@@ -36,14 +36,19 @@ Three axes, deliberately separate. Each found things the others could not.
 
 | File | Audits | Findings |
 |---|---|---|
-| `audit-report.md` | **the idea** — adversarial review of the design before any code | A1–A11, FIX-1–12 *(referenced by both specs; not yet in the repo)* |
+| `overlap-master-doc.md` §0 | **the idea** — adversarial review of the design before any code | A1–A11 |
+| `audit-report.md` | **the documents** — traced as if executing them literally | FIX-1–FIX-13 |
 | `implementation-audit.md` | **the build** — defects in the code | IMP-1–15 |
 | `coherence-audit.md` | **the seams** — contradictions *between* documents | X-1–X-32 |
 
 The pattern each one found is worth carrying into the next:
 
+> **Design:** the failure modes were all over-promising — asserting more about people than they had actually said.
+> **Documents:** the worst defects were *omissions*, not errors. Nothing said what "the signals for a group" meant, so an agent would have guessed, inside the one piece of real logic in the product.
 > **Implementation:** every defect that mattered was found by running the thing, not reading it.
 > **Coherence:** every correction that got lost was lost in the seam between two documents that each assumed the other was carrying it.
+
+`audit-report.md` also carries **FIX-13**, added after implementation began and reported from a ticket rather than from a reading. It overrode a decision already taken in `adr/0007`. Worth knowing that an audit document is not necessarily finished at the point code starts.
 
 ## Maintenance rules
 

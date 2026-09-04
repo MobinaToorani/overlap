@@ -10,7 +10,7 @@ A theme worth stating up front: **several findings are best resolved by deleting
 
 ---
 
-## X-1 — Strike FIX-7 (fortnightly cadence). Do not make freshness cadence-aware.
+## X-1 — ~~Strike FIX-7. Do not make freshness cadence-aware.~~ **Superseded — see the amendment at the foot of this file.**
 
 The audit offers two options: tie the freshness window to cadence, or strike FIX-7 and reopen A8. **Struck.**
 
@@ -109,4 +109,34 @@ CHPGM depends on the attendance prompt firing, but §6 specifies it in-app only 
 
 The net effect is **fewer commitments, more honestly held**. Two corrections are struck (FIX-7, Apple), one deferred (FIX-5), two given owners (share card, founder-triggered Signal), and three schema changes queued before the tickets that would build on them (`grp.timezone`, RSVP uniqueness, `public_slug`).
 
+> **Superseded in part.** FIX-7 is **deferred, not struck** — see the amendment below. The count above reads *one* struck correction (Apple), not two.
+
 The decisions that touch shipped code — `lapsed`, the band floor, the `display_name` leak — are implemented and tested. The rest are spec and ticket changes that land ahead of the tickets they affect, which is the point: each was found in the seam between documents, and the fix is to close the seam before the code arrives.
+
+---
+
+## Amendment, 2026-09-04 — X-1 partially reversed by `audit-report.md` FIX-13
+
+**Status:** accepted, superseding the X-1 section above.
+
+`audit-report.md` — the design audit both specs cite, added to the repo after this ADR was written — carries a **FIX-13** written in response to the decay defect reported from T6. It specifies the resolution differently than X-1 above decided, on two points. FIX-13 wins on both, and the reasoning is worth keeping because the disagreement was substantive rather than clerical.
+
+### 1. Freshness *is* cadence-derived. (Reversed.)
+
+X-1 argued: FIX-7 is unbuildable now, so strike it, and freshness stays a flat 7 days with a comment telling whoever revives it to fix freshness in the same change.
+
+That reasoning had a hole. **A note instructing a future contributor to remember something is exactly the mechanism this repo's coherence audit exists because of.** X-1 was itself a finding about a correction that lived in a comment and was never carried through; resolving it with another comment reproduces the pathology it identified.
+
+Deriving the window from `cadence_weeks` costs one parameter and, at today's universal `cadence_weeks = 1`, produces **behaviour identical to the flat rule** — every existing test passed unchanged. It is free, and it makes the trap structurally impossible instead of documented. Test **RS-7** pins it.
+
+### 2. Decay has three stages, not two. (Added.)
+
+X-1 did not consider this and neither did the coherence audit. FIX-13's argument is correct and I had missed it: **`lapsed` is still shown**, so a two-state model produces a fade that never finishes. Someone who signals once in September stays visible at reduced weight until the dates themselves roll past. Master doc §2.3d promises they "fade out of the picture entirely", and no combination of two states delivers that.
+
+Stage 3 drops the night **whatever state it held**, including `blocked` — a decision beyond FIX-13's letter, taken for consistency with the reasoning that produced `lapsed` in the first place. A two-cycle-old "I'm busy" asserts a conflict the member may no longer have, and the honesty argument that forbids stale confirmations forbids stale conflicts equally. Silence is the accurate representation of *we no longer know*. **RS-8** covers it.
+
+### What survives from X-1
+
+FIX-7's **stepdown** is still not built, for X-1's original and undisturbed reasons: its trigger needs completion history no table holds, it cannot fire in a four-week pilot, and adapting a cadence before validating the base cadence optimises a loop that may not exist. **A8 stays reopened.** The change is one of register — from *struck* to *deferred* — and the difference is real: `cadence_weeks` is now read by the engine rather than being an inert column, so the stepdown becomes a switch to flip rather than a feature to re-derive.
+
+**Meta-note, and the reason this amendment is written rather than the ADR quietly edited:** the previous decision was reached by reasoning honestly from the documents available at the time, and was wrong in a way no amount of further thought about those documents would have exposed — the missing input was a document that had not yet been added. This is the third time in this project that a defect was found by an artifact arriving late rather than by re-reading what was already present, which is worth remembering the next time a decision feels finished.

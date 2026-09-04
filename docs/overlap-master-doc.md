@@ -2,7 +2,7 @@
 
 *Working codename. Alternate names in §14.*
 
-**Version:** 0.3 (decay rule clarified 2026-09-04)
+**Version:** 0.4 (decay rule restated as three cadence-derived stages, 2026-09-04)
 **Owner:** Mobina Toorani (Strange Attractor)
 **Date:** September 2026
 **Status:** Pre-build. This document is the source of truth until v1 ships.
@@ -110,7 +110,7 @@ An adversarial review of v0.1, conducted as if trying to argue the product would
 
 *Flaw.* Groups plan roughly once or twice a month. A weekly ritual runs at two to four times the cadence of the underlying behaviour, and users notice when an app asks more of them than the outcome justifies.
 
-*Correction (§2.2).* The three-week horizon partly resolves this, since each Signal now feeds several planning windows rather than one. Additionally, groups with sustained low plan volume are **automatically stepped down to a fortnightly Signal** rather than being allowed to decay to zero. Cadence should follow the group's real tempo.
+*Correction (§2.2).* The three-week horizon partly resolves this, since each Signal now feeds several planning windows rather than one. A second half was proposed — stepping quiet groups down to a fortnightly Signal (FIX-7) — and is **deferred, not shipped**: its trigger needs per-group completion history no table holds, and M5 is asking whether the mechanic works at weekly cadence in the first place. Adapting the cadence before the base cadence is validated optimises a loop that may not exist. **A8 therefore remains an open question, not a solved one** — the horizon is a partial mitigation and is honestly labelled as such.
 
 ### Tier 3 — Material, correctable
 
@@ -229,9 +229,19 @@ Ten seconds of input from one person creates value for every other member. This 
 The user submits and instantly learns something they did not know and could not have computed: *the group's best night.* Every ritual must end in a reward. A ritual that ends in "thanks, saved" is dead within three weeks.
 
 **d) Decay creates loss aversion, not guilt.**
-Signals decay progressively rather than snapping to zero. A confirmation is only as good as the moment it was made: **seven days after you signal, everything you tapped stops counting as a hard yes and becomes merely unconfirmed** — still shown in the heatmap, at reduced weight, but excluded from headline counts. Skip repeatedly and you fade out of the picture entirely. You are never scolded; plans simply get made without you. This is more motivating than a nag and more honest than one: the app cannot represent you if you have not told it anything.
+Signals decay progressively rather than snapping to zero. A confirmation is only as good as the moment it was made, and it fades in **three stages**:
+
+1. **Fresh** — until the next Signal is due, everything you tapped counts as a hard yes.
+2. **Lapsed** — one cycle later it stops counting toward headline numbers but is *still shown*, at reduced weight. The app remembers that you said yes; it just no longer treats it as current.
+3. **Gone** — one cycle after that it disappears. You have faded out of the picture entirely.
+
+Skip once and you fade; skip twice and you are simply not there. You are never scolded; plans simply get made without you. This is more motivating than a nag and more honest than one: the app cannot represent you if you have not told it anything.
+
+The middle stage is the one that matters, and it is why the fade has three steps rather than two. A lapsed night is **not** the same as never having answered — the app says *"they tapped this, a while ago"*, not *"no conflict on their calendar"*. Flattening those together would misdescribe a friend who did answer, which is the same dishonesty as over-reporting one who didn't.
 
 > **Clarified 2026-09-04 (v0.3).** This paragraph previously said "the current week expires Saturday night, while weeks two and three persist but are marked unconfirmed," which read to the implementer as *only* week one decaying — and the engineering spec had encoded exactly that. The effect was that an abandoned signal kept asserting hard confirmations for its later two weeks for a fortnight, so skipping had no consequence and the heatmap over-reported availability (the A2 failure). One timer, applied to the whole signal, is both simpler and what this section always intended. See `engineering-spec.md` §4.0.
+>
+> **Restated 2026-09-04 (v0.4), per `audit-report.md` FIX-13.** v0.3 described the fade in prose and implied two states. Two states cannot actually produce "fade out of the picture entirely" — a lapsed night stays on screen at reduced weight until the date itself passes, which is a fade that never finishes. The three stages are now stated explicitly rather than left to be inferred, since the inference is exactly what went wrong the first time. The cycle length follows the group's own Signal cadence (§2.4h), so a group asked fortnightly is not treated as stale weekly.
 
 **e) It defeats the Dead Interval by design.**
 The app no longer needs a plan in flight to be opened. It has a heartbeat: 52 guaranteed sessions per user per year, each one refreshing the exact data the product runs on. The Signal *is* the retention loop.
@@ -240,7 +250,9 @@ The app no longer needs a plan in flight to be opened. It has a heartbeat: 52 gu
 Vibe and budget carry more planning signal than a precise calendar, and cost one tap. Calendar sync removes known conflicts passively, so the human is confirming a short list rather than constructing one.
 
 **g) Cadence adapts to the group's real tempo.**
-Most groups plan once or twice a month, so a weekly ask can outrun the behaviour it supports. The three-week horizon means each Signal now feeds several planning windows rather than one. Beyond that, a group with sustained low plan volume is **automatically stepped down to a fortnightly Signal** rather than being left to decay into silence. Better to ask less often than to be ignored.
+Most groups plan once or twice a month, so a weekly ask can outrun the behaviour it supports. The three-week horizon means each Signal now feeds several planning windows rather than one. Beyond that, the intent is that a group with sustained low plan volume steps down to a **fortnightly Signal** rather than being left to decay into silence — better to ask less often than to be ignored.
+
+**That stepdown is specified but deliberately not built for v1** (FIX-7; ADR-0007). It cannot fire during a four-week pilot, and the question M5 exists to answer is whether the weekly ritual works at all. What *is* built is the coupling it would otherwise have broken: the freshness windows in §2.3d derive from `cadence_weeks`, so a group moved to fortnightly is not marked stale on a weekly clock. The stepdown can be switched on later without that trap waiting for it.
 
 ### 2.4 The supporting loops
 
@@ -680,7 +692,7 @@ Enforce A2 in code, not convention: the sync job may only write `signal_night.st
 A cron running hourly checks: for each group, which members are currently at 19:00 local on the group's signal day and have not yet received this week's push. Group members can be in different timezones; the dispatch is per-user, the deadline is per-group-week. Idempotency key: `signal:{user_id}:{week_start_date}` — **not** per-group. Keying it per group would send a user in three groups three Sunday Signals, which is exactly the ritual-multiplication A4 corrected, and would consume three of the four notification slots FIX-3 reserves one of. Where a user's groups disagree on `signal_dow` / `signal_hour` / `cadence_weeks`, dispatch at the **earliest** local slot among them, in any week where **any** of their groups is due.
 
 **Decay is a read-time concern, not a write-time job.**
-Do not run a job that deletes signals, and do not filter them either. Decay is computed in `resolveSignals()` at read time: a stale confirmation is **downgraded** to unconfirmed, never removed — it must still render at reduced weight (§2.3d), because a member who fades is different from a member who vanishes. There is no `expires_at` column and no expiry job; see `engineering-spec.md` §4.0.
+Do not run a job that deletes signals. **Nothing is ever deleted from the database** — decay is computed in `resolveSignals()` at read time, there is no `expires_at` column and no expiry job. What decays is how a stored night is *read*, in the three stages of §2.3d: a stale confirmation is first **downgraded** and must still render at reduced weight, because a member who fades is different from a member who vanishes; only after a second cycle is it omitted from the read entirely. The row stays. See `engineering-spec.md` §4.0.
 
 **Public invite pages must be fast and unauthenticated.**
 `/p/[slug]` server-rendered, cached at the edge, with OG image generation (Vercel OG) so links preview beautifully in iMessage. This page is the entire acquisition engine — it deserves disproportionate polish and a sub-1s LCP target on 4G.
