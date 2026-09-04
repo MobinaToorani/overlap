@@ -84,3 +84,41 @@ export interface GroupOverlap {
   memberCount: number;
   isLive: boolean; // signalledCount >= 3
 }
+
+export type GroupMemberRole = 'member' | 'admin';
+
+/**
+ * createdAt/joinedAt are real `Date` objects, not ISO strings — tRPC's
+ * superjson transformer preserves Date through the wire, and these fields
+ * come straight off Drizzle's `timestamptz` columns (which postgres-js
+ * already returns as Date). Unlike SignalNight.date (a calendar date with
+ * no time component, always a plain string), these are instants.
+ */
+export interface Group {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  joinCode: string;
+  createdAt: Date;
+}
+
+export interface GroupMember {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  role: GroupMemberRole;
+  joinedAt: Date;
+}
+
+export interface GroupWithMembers extends Group {
+  members: GroupMember[];
+}
+
+/** A row from group.listMine — deliberately lighter than GroupWithMembers;
+ * a group switcher needs a name and a way to link to it, not a member list
+ * per group. */
+export interface GroupSummary {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+}

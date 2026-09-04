@@ -59,3 +59,32 @@ export const verifyOtpInputSchema = z.object({
   phone: phoneE164Schema,
   code: z.string().regex(/^\d{6}$/, 'expected a 6-digit code'),
 });
+
+// group.* — engineering-spec.md §5.
+export const groupNameSchema = z.string().trim().min(1).max(80);
+
+// FIX-12: ">=10 chars from a 32-char unambiguous alphabet (no 0/O/1/I)".
+// The spec doesn't name the other 31 characters — this is digits 2-9 plus
+// A-Z minus I and O, which is exactly 32 (see joinCode.ts, the single
+// source of truth for the alphabet; this regex must stay in sync with it).
+// Case-insensitive: generated codes are uppercase, but people will type
+// lowercase, and the server normalizes before lookup — reject shape here,
+// not case.
+export const joinCodeSchema = z
+  .string()
+  .trim()
+  .min(10)
+  .max(20)
+  .regex(/^[2-9A-HJ-NP-Z]+$/i, 'not a valid join code');
+
+export const groupCreateInputSchema = z.object({
+  name: groupNameSchema,
+});
+
+export const groupJoinByCodeInputSchema = z.object({
+  joinCode: joinCodeSchema,
+});
+
+export const groupIdInputSchema = z.object({
+  groupId: z.string().uuid(),
+});

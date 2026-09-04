@@ -1,9 +1,11 @@
 import { createTRPCRouter } from '../trpc';
 import { authRouter } from './auth';
+import { groupRouter } from './group';
 
 export const appRouter = createTRPCRouter({
   auth: authRouter,
-  // group.*, signal.*, plan.*, etc. join here starting T4 — see
+  group: groupRouter,
+  // signal.*, plan.*, etc. join here starting T6 — see
   // ../../trpc/routers/README.md for why they're not here yet.
 });
 

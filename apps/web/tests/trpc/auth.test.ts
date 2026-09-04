@@ -29,7 +29,7 @@ describe('auth.requestOtp', () => {
     const caller = appRouter.createCaller(
       createTestContext({
         supabaseAuth,
-        requestByPhone: { check: async () => ({ allowed: false }) },
+        otpRequestByPhone: { check: async () => ({ allowed: false }) },
       }),
     );
 
@@ -44,7 +44,7 @@ describe('auth.requestOtp', () => {
     const caller = appRouter.createCaller(
       createTestContext({
         supabaseAuth,
-        requestByIp: { check: async () => ({ allowed: false }) },
+        otpRequestByIp: { check: async () => ({ allowed: false }) },
       }),
     );
 
@@ -117,7 +117,7 @@ describe('auth.verifyOtp', () => {
     const caller = appRouter.createCaller(
       createTestContext({
         supabaseAuth,
-        verifyByPhone: { check: async () => ({ allowed: false }) },
+        otpVerifyByPhone: { check: async () => ({ allowed: false }) },
       }),
     );
 

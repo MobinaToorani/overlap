@@ -6,7 +6,7 @@ A rolling three-week heatmap of when a friend group is collectively free, fed by
 
 [![CI](https://github.com/MobinaToorani/overlap/actions/workflows/ci.yml/badge.svg)](https://github.com/MobinaToorani/overlap/actions/workflows/ci.yml)
 
-> **Status: pre-launch, private repo.** v1 scope is T1-T22 in [`docs/backlog.md`](docs/backlog.md) — this codebase currently has the repo scaffold, the full DB schema, and the overlap engine (the core algorithm) done and tested. No auth, no UI, no worker yet. See [Where things stand](#where-things-stand).
+> **Status: pre-launch, private repo.** v1 scope is T1-T22 in [`docs/backlog.md`](docs/backlog.md) — this codebase currently has the repo scaffold, the full DB schema, the overlap engine (the core algorithm), phone OTP auth, and group create/join/membership done and unit-tested. No live database has been provisioned yet, so nothing has run against real Postgres. No Signal, heatmap, calendar sync, or worker yet. See [Where things stand](#where-things-stand).
 
 ---
 
@@ -126,7 +126,7 @@ Every non-negotiable invariant needs a test; where one genuinely can't run yet (
 
 ## Where things stand
 
-Full board: [`docs/backlog.md`](docs/backlog.md). Short version: repo scaffold (T1), full DB schema (T2, minus the live-DB trigger test), the overlap engine (T5/T5b), and phone OTP auth (T3) are done and unit-tested. T3's actual login flow — "two phones can OTP-login" — hasn't been verified against a real phone yet, because it needs a live Supabase project's credentials in `apps/web/.env.local`, which nobody has provisioned yet. The Signal UI, the heatmap UI, calendar sync, plans/invites, and the notification dispatcher are all still ahead — see the backlog for the exact sequence, which is deliberately one-ticket-at-a-time (`docs/agent-prompt.md`'s ground rules explain why: long autonomous runs on a greenfield product produce plausible code that violates the invariants, and the invariants are the product).
+Full board: [`docs/backlog.md`](docs/backlog.md). Short version: repo scaffold (T1), full DB schema (T2), the overlap engine (T5/T5b), phone OTP auth (T3), and group create/join/membership (T4) are done and unit-tested. None of it has run against a real database yet — no Supabase project or other Postgres has been provisioned, so T3's "two phones can OTP-login" and T4's actual query/transaction behavior are both unverified against live infrastructure, tracked explicitly in the backlog rather than assumed. The Signal UI, the heatmap UI, calendar sync, plans/invites, and the notification dispatcher are all still ahead — see the backlog for the exact sequence, which is deliberately one-ticket-at-a-time (`docs/agent-prompt.md`'s ground rules explain why: long autonomous runs on a greenfield product produce plausible code that violates the invariants, and the invariants are the product).
 
 ## Documentation map
 

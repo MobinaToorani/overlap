@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  groupCreateInputSchema,
+  groupNameSchema,
   isoDateSchema,
+  joinCodeSchema,
   phoneE164Schema,
   requestOtpInputSchema,
   signalSubmitInputSchema,
@@ -98,5 +101,46 @@ describe('requestOtpInputSchema / verifyOtpInputSchema', () => {
         false,
       );
     }
+  });
+});
+
+describe('groupNameSchema', () => {
+  it('rejects empty or whitespace-only names', () => {
+    expect(groupNameSchema.safeParse('').success).toBe(false);
+    expect(groupNameSchema.safeParse('   ').success).toBe(false);
+  });
+
+  it('trims and accepts a reasonable name', () => {
+    expect(groupNameSchema.safeParse('  The Crew  ').success).toBe(true);
+  });
+
+  it('rejects a name over 80 characters', () => {
+    expect(groupNameSchema.safeParse('x'.repeat(81)).success).toBe(false);
+  });
+});
+
+describe('groupCreateInputSchema', () => {
+  it('accepts a valid name', () => {
+    expect(groupCreateInputSchema.safeParse({ name: 'Book Club' }).success).toBe(true);
+  });
+});
+
+describe('joinCodeSchema (FIX-12)', () => {
+  it('accepts a 12-character code from the unambiguous alphabet', () => {
+    expect(joinCodeSchema.safeParse('23456789ABCD').success).toBe(true);
+  });
+
+  it('is case-insensitive', () => {
+    expect(joinCodeSchema.safeParse('abcdefghjklm').success).toBe(true);
+  });
+
+  it('rejects the excluded ambiguous characters 0, O, 1, I', () => {
+    for (const bad of ['0BCDEFGHJKLM', 'OBCDEFGHJKLM', '1BCDEFGHJKLM', 'IBCDEFGHJKLM']) {
+      expect(joinCodeSchema.safeParse(bad).success).toBe(false);
+    }
+  });
+
+  it('rejects codes shorter than 10 characters', () => {
+    expect(joinCodeSchema.safeParse('23456789A').success).toBe(false);
   });
 });

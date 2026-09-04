@@ -15,8 +15,8 @@ export const authRouter = createTRPCRouter({
   requestOtp: publicProcedure.input(requestOtpInputSchema).mutation(async ({ ctx, input }) => {
     // FIX-9: both limits apply — either one tripping blocks the send.
     const [phoneResult, ipResult] = await Promise.all([
-      ctx.otpRateLimiters.requestByPhone.check(input.phone),
-      ctx.otpRateLimiters.requestByIp.check(ctx.ip),
+      ctx.rateLimiters.otpRequestByPhone.check(input.phone),
+      ctx.rateLimiters.otpRequestByIp.check(ctx.ip),
     ]);
     if (!phoneResult.allowed || !ipResult.allowed) {
       throw new TRPCError({
@@ -35,8 +35,8 @@ export const authRouter = createTRPCRouter({
 
   verifyOtp: publicProcedure.input(verifyOtpInputSchema).mutation(async ({ ctx, input }) => {
     // Not in engineering-spec.md's rate-limit table, but unlimited guesses
-    // at a 6-digit code is its own abuse vector — see otpRateLimiters.ts.
-    const { allowed } = await ctx.otpRateLimiters.verifyByPhone.check(input.phone);
+    // at a 6-digit code is its own abuse vector — see rateLimiters.ts.
+    const { allowed } = await ctx.rateLimiters.otpVerifyByPhone.check(input.phone);
     if (!allowed) {
       throw new TRPCError({
         code: 'TOO_MANY_REQUESTS',

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { getUser } from '@/server/auth/requireUser';
 import { SignOutButton } from './SignOutButton';
 
@@ -11,6 +12,9 @@ export default async function MePage() {
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-6">
       <h1 className="font-display text-3xl text-text">You&apos;re in</h1>
       <p className="text-text-muted">Signed in as {user?.phone}.</p>
+      <Link href="/g" className="text-accent underline">
+        Your groups
+      </Link>
       <SignOutButton />
     </main>
   );
