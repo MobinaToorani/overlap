@@ -1,5 +1,17 @@
-import 'dotenv/config';
+import { config as loadEnv } from 'dotenv';
 import { defineConfig } from 'drizzle-kit';
+
+// Next.js reads .env.local automatically; plain node scripts like this one
+// do not — bare `dotenv/config` only loads `.env`. Without this, putting
+// DATABASE_URL in .env.local (the file the app itself uses) would leave
+// db:generate/db:migrate insisting it wasn't set.
+//
+// Two sequential calls rather than dotenv's array form: the array form
+// returns an error if ANY listed file is missing, and .env legitimately
+// doesn't exist here. dotenv never overwrites an already-set variable, so
+// .env.local still wins.
+loadEnv({ path: '.env.local' });
+loadEnv({ path: '.env' });
 
 if (!process.env.DATABASE_URL) {
   // Fine at import time in CI (typecheck/lint never construct this config's

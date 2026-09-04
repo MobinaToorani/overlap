@@ -1,10 +1,17 @@
-import 'dotenv/config';
+import { config as loadEnv } from 'dotenv';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
+
+// See drizzle.config.ts: bare `dotenv/config` would miss .env.local, which
+// is the file this project actually keeps its credentials in. Sequential
+// calls because the array form errors on a missing file; .env.local still
+// takes precedence since dotenv won't overwrite an already-set variable.
+loadEnv({ path: '.env.local' });
+loadEnv({ path: '.env' });
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
