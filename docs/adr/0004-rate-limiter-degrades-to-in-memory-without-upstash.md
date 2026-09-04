@@ -19,6 +19,10 @@
 
 ## Consequences
 
-**This is not safe as-is for a real deployment.** If Overlap ever ships to a serverless/edge target (Vercel is the locked hosting choice) without Upstash configured, the in-memory limiter provides no real protection — each invocation likely gets its own memory, so an attacker's requests spread across instances essentially unlimited. The warning log is the only guard against this happening silently.
+**This is not safe as-is for a real deployment**, and measurement since has shown it's worse than this ADR originally assumed.
 
-**Follow-up before real phone numbers are used:** once Upstash is provisioned (`founder-checklist.md`, weeks 2-4), verify in a deployed (not local) environment that the startup log does *not* show the `UPSTASH_REDIS_REST_URL/TOKEN not set` warning. Whoever does the T3 phone-verification step in `docs/backlog.md` should check this at the same time — it's a five-second log check that's cheap to fold into that verification pass, and easy to forget separately.
+**Measured 2026-09-04 (Sprint 1 audit).** Ten consecutive `auth.requestOtp` calls for the same phone against `next dev` were *never* throttled — the limiter's counter resets whenever its module is re-instantiated, which happened repeatedly within a single server process. The identical sequence throttles correctly in-process (`tests/trpc/rateLimitWiring.test.ts` — 3 allowed, 4th `TOO_MANY_REQUESTS`, Supabase reached only 3 times), so the wiring is right and the algorithm is right; only the persistence is missing. The original wording here ("provides no real protection across multiple serverless instances") undersold it: it does not reliably throttle across *requests*, let alone instances. Both the code comment and the runtime warning have been corrected to say so plainly.
+
+**This creates a sequencing requirement that isn't obvious from the founder checklist:** Upstash must be configured **before** Twilio goes live, not merely "before launch". Until then `auth.requestOtp` should be considered unrated-limited, and the moment Twilio works every unthrottled request is a paid SMS — the exact billing-attack vector FIX-9 exists to prevent. Ordering the two the other way around opens the vector rather than closing it.
+
+**Verification when Upstash lands:** confirm in a deployed (not local) environment that the startup log does *not* contain the `UPSTASH_REDIS_REST_URL/TOKEN not set` warning, then repeat the four-request check against the deployed URL and confirm the fourth is refused.

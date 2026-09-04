@@ -11,6 +11,7 @@
  */
 import { config as loadEnv } from 'dotenv';
 import postgres from 'postgres';
+import { sql as sqlTag } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 
 loadEnv({ path: '.env.local' });
@@ -18,6 +19,13 @@ loadEnv({ path: '.env' });
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const sql = DATABASE_URL ? postgres(DATABASE_URL, { max: 1, onnotice: () => {} }) : null;
+
+// File-scoped, not per-describe: the connection is shared across every
+// describe here, so closing it inside one of them would end it while a
+// later block is still running.
+afterAll(async () => {
+  await sql?.end();
+});
 
 /** Runs `fn` inside a transaction and always rolls it back. */
 async function inRollback(fn: (tx: postgres.TransactionSql) => Promise<void>) {
@@ -44,10 +52,6 @@ async function seedUser(tx: postgres.TransactionSql) {
 }
 
 describe.skipIf(!DATABASE_URL)('live Postgres', () => {
-  afterAll(async () => {
-    await sql?.end();
-  });
-
   it('applied the full schema', async () => {
     const rows = await sql!`
       SELECT table_name FROM information_schema.tables
@@ -172,5 +176,87 @@ describe.skipIf(!DATABASE_URL)('live Postgres', () => {
         `,
       ).rejects.toThrow();
     });
+  });
+});
+
+/**
+ * Sprint 1's definition of done includes "two phones can OTP-login, one
+ * creates a group, the other joins by code". The OTP half needs Twilio,
+ * which doesn't exist yet — but the group half is our own code, and until
+ * now it had never run against a real database (ADR-0006 explains why the
+ * in-memory harness couldn't reach it).
+ *
+ * These drive the real tRPC procedures through the same createCaller path
+ * the app uses, backed by a real Drizzle instance — so the transaction in
+ * group.create, the innerJoin in group.get, and onConflictDoNothing in
+ * joinByCode are all genuinely exercised. The whole thing runs inside one
+ * outer transaction that gets rolled back; the router's own
+ * db.transaction() nests as a savepoint inside it.
+ */
+describe.skipIf(!DATABASE_URL)('group + signal routers against live Postgres', () => {
+  it('create → joinByCode → get → listMine, and a non-member is refused', async () => {
+    const { drizzle } = await import('drizzle-orm/postgres-js');
+    const schema = await import('@/server/db/schema');
+    const { appRouter } = await import('@/server/trpc/routers/_app');
+    const { createTestContext, fakeUser } = await import('../trpc/helpers');
+
+    const db = drizzle(sql!, { schema });
+    const ROLLBACK = Symbol('rollback');
+
+    try {
+      await db.transaction(async (tx) => {
+        const seed = async (phone: string) => {
+          const [row] = await tx.execute<{ id: string }>(
+            sqlTag`INSERT INTO auth.users (id, instance_id, aud, role, phone, created_at, updated_at)
+                   VALUES (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
+                           'authenticated', 'authenticated', ${phone}, now(), now())
+                   RETURNING id`,
+          );
+          return (row as unknown as { id: string }).id;
+        };
+
+        const alice = await seed('+15195550101');
+        const bob = await seed('+15195550102');
+        const carol = await seed('+15195550103');
+
+        const callerFor = (userId: string) =>
+          appRouter.createCaller(
+            createTestContext({
+              user: fakeUser(userId),
+              db: (() => tx) as unknown as ReturnType<typeof createTestContext>['db'],
+            }),
+          );
+
+        // Alice creates a group — exercises the real transaction + join code.
+        const group = await callerFor(alice).group.create({ name: 'Live Test Crew' });
+        expect(group.joinCode).toHaveLength(12);
+
+        // Bob joins by code, lowercased, to prove normalization works live.
+        const joined = await callerFor(bob).group.joinByCode({
+          joinCode: group.joinCode.toLowerCase(),
+        });
+        expect(joined.id).toBe(group.id);
+
+        // Joining twice is idempotent (onConflictDoNothing against the real PK).
+        await callerFor(bob).group.joinByCode({ joinCode: group.joinCode });
+
+        const fetched = await callerFor(alice).group.get({ groupId: group.id });
+        expect(fetched.members).toHaveLength(2); // not 3 — no duplicate row
+        expect(fetched.members.find((m) => m.userId === alice)?.role).toBe('admin');
+        expect(fetched.members.find((m) => m.userId === bob)?.role).toBe('member');
+
+        // The privacy boundary, against a real query rather than a fake.
+        await expect(callerFor(carol).group.get({ groupId: group.id })).rejects.toMatchObject({
+          code: 'FORBIDDEN',
+        });
+
+        expect((await callerFor(alice).group.listMine()).map((g) => g.id)).toContain(group.id);
+        expect((await callerFor(carol).group.listMine()).map((g) => g.id)).not.toContain(group.id);
+
+        throw ROLLBACK;
+      });
+    } catch (err) {
+      if (err !== ROLLBACK) throw err;
+    }
   });
 });

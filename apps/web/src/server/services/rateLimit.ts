@@ -13,12 +13,22 @@ export interface RateLimiter {
 }
 
 /**
- * A single-process sliding-window limiter. Correct for local dev and for a
- * single always-on server, but each serverless/edge instance gets its own
- * memory — in that deployment shape this provides close to zero real
- * protection, since an attacker's requests land on different instances.
- * createRateLimiter() only falls back to this when Upstash isn't
- * configured, and warns loudly when it does.
+ * A single-process sliding-window limiter. The algorithm is correct (see
+ * its tests) but the *state* only lives as long as the module instance
+ * holding it.
+ *
+ * Measured on 2026-09-04, this is weaker than "works on one server":
+ * sending 10 OTP requests to `next dev` never throttled once, because the
+ * module was re-instantiated underneath them and the counter reset each
+ * time. The identical sequence throttles correctly in-process
+ * (tests/trpc/rateLimitWiring.test.ts). On Vercel, where invocations are
+ * separate instances by design, expect the same — which means this
+ * fallback provides approximately no protection in any real deployment,
+ * not merely degraded protection.
+ *
+ * It exists so local development works without an Upstash account. It is
+ * not a production posture: FIX-9 is only genuinely satisfied once
+ * UPSTASH_REDIS_REST_URL/TOKEN are set.
  */
 export function createInMemoryRateLimiter(config: {
   limit: number;
@@ -60,9 +70,11 @@ export async function createRateLimiter(config: {
   if (!url || !token) {
     console.warn(
       `[rateLimit:${config.name}] UPSTASH_REDIS_REST_URL/TOKEN not set — using an ` +
-        'in-memory limiter. Fine for local dev; provides no real protection ' +
-        'across multiple serverless instances. Set the Upstash env vars before ' +
-        'any real phone number is used (FIX-9).',
+        'in-memory limiter. This does NOT reliably throttle anything: its ' +
+        'counter resets whenever the module is re-instantiated, which is ' +
+        'every request in some environments. Treat this endpoint as ' +
+        'UNRATELIMITED until Upstash is configured — which must happen ' +
+        'before Twilio is live, since each unthrottled OTP is a paid SMS (FIX-9).',
     );
     return createInMemoryRateLimiter({
       limit: config.limit,

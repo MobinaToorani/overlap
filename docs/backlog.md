@@ -36,5 +36,6 @@ One ticket in flight at a time — see `docs/agent-prompt.md`'s ground rules. A 
 
 Tracked in full in `founder-checklist.md`; the two items with real queues, restated here because they're easy to forget once T3+ engineering work gets absorbing:
 
-- Twilio A2P 10DLC registration (1-4 weeks, can be rejected)
+- **Upstash Redis — do this BEFORE Twilio.** Not just a weeks-2-4 infra chore: measured during the Sprint 1 audit (2026-09-04), the in-memory fallback limiter does not throttle at all across requests, so `auth.requestOtp` is effectively unrate-limited until Upstash exists. The moment Twilio is live, every unthrottled request is a paid SMS — the billing-attack vector FIX-9 exists to prevent. See ADR-0004.
+- Twilio A2P 10DLC registration (1-4 weeks, can be rejected). Also gates Supabase phone OTP entirely — Supabase has no built-in SMS, so "two phones can OTP-login" cannot be verified until this exists.
 - Google OAuth verification (2-6 weeks; "testing" mode with manual test users covers the whole pilot, so this can run in parallel rather than block T9)
