@@ -4,7 +4,7 @@
 **Scope:** everything built so far — repo scaffold, DB schema, auth, groups, the overlap engine, the Signal, the heatmap.
 **Method:** four audit passes, each run *before* starting the next ticket. Findings only count here if they were demonstrated — by executing the code, querying the live database, or probing the deployed API — not by reading it and reasoning about it.
 
-`engineering-spec.md` v1.1 referenced an `audit-report.md` covering the *document* audit that produced findings A1–A11 and FIX-1–FIX-12. That file was never in the repo. This is a different document: it records defects found in the **implementation**, and the two spec corrections that came out of them.
+**Not to be confused with `audit-report.md`**, which both specs' changelogs reference: that one is the *document* audit of the original product design, the adversarial review that produced findings A1–A11 and FIX-1–FIX-12 before any code existed. This one is its counterpart on the other side of the build — defects found in the **implementation**, and the two spec corrections that came out of them.
 
 ---
 

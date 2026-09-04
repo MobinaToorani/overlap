@@ -94,7 +94,8 @@ overlap/
     ├── founder-checklist.md     Tasks only the founder can do (legal, A2P 10DLC, OAuth verification)
     ├── marketing-plan.md        GTM
     ├── backlog.md               T1-T22 status board
-    ├── audit-report.md          implementation defects found, and how
+    ├── audit-report.md          the design audit (A1-A11, FIX-1-FIX-12)
+    ├── implementation-audit.md  defects found in the code, and how
     └── adr/                     Decisions made while building, not written into the spec
 ```
 
