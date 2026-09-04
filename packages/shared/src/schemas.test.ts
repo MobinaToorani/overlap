@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { isoDateSchema, signalSubmitInputSchema, vibeSchema } from './schemas';
+import {
+  isoDateSchema,
+  phoneE164Schema,
+  requestOtpInputSchema,
+  signalSubmitInputSchema,
+  verifyOtpInputSchema,
+  vibeSchema,
+} from './schemas';
 
 describe('vibeSchema', () => {
   it('accepts every vibe named in engineering-spec.md §9', () => {
@@ -62,5 +69,34 @@ describe('signalSubmitInputSchema', () => {
       note: 'x'.repeat(141),
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('phoneE164Schema', () => {
+  it('accepts a well-formed E.164 number', () => {
+    expect(phoneE164Schema.safeParse('+15195551234').success).toBe(true);
+  });
+
+  it('rejects numbers missing the country code, with punctuation, or without a leading +', () => {
+    for (const bad of ['5195551234', '+1 519 555 1234', '+1-519-555-1234', '0195551234']) {
+      expect(phoneE164Schema.safeParse(bad).success).toBe(false);
+    }
+  });
+});
+
+describe('requestOtpInputSchema / verifyOtpInputSchema', () => {
+  it('requestOtp accepts a valid phone', () => {
+    expect(requestOtpInputSchema.safeParse({ phone: '+15195551234' }).success).toBe(true);
+  });
+
+  it('verifyOtp requires exactly 6 digits', () => {
+    expect(
+      verifyOtpInputSchema.safeParse({ phone: '+15195551234', code: '123456' }).success,
+    ).toBe(true);
+    for (const bad of ['12345', '1234567', 'abcdef']) {
+      expect(verifyOtpInputSchema.safeParse({ phone: '+15195551234', code: bad }).success).toBe(
+        false,
+      );
+    }
   });
 });

@@ -1,3 +1,3 @@
 # tRPC routers
 
-Empty on purpose. `docs/agent-prompt.md` gates the API surface (`docs/engineering-spec.md` §5) behind T3 (auth), T4 (groups), T6 (Signal), T11+ (plans) — this pass only built the pieces that stand alone without those: the DB schema, `resolveSignals()`, and `computeOverlap()`. Wiring these into `auth.*` / `group.*` / `signal.*` / `plan.*` procedures starts with T3.
+`auth.*` (T3) is the only router wired in so far. `docs/agent-prompt.md` gates the rest of the API surface (`docs/engineering-spec.md` §5) behind their own tickets — `group.*` (T4), `signal.*` (T6), `plan.*` (T11+). Add each to `_app.ts` when its ticket starts, not before.

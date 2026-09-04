@@ -19,9 +19,9 @@ async function main() {
     migrationsFolder: path.join(__dirname, 'migrations'),
   });
 
-  // Apply the hand-written invariant guards (triggers + worker role) that
-  // drizzle-kit cannot generate from the schema builder. See
-  // ./sql/0001_guard_invariants.sql for why these exist — INV-1.
+  // Apply the hand-written SQL that drizzle-kit cannot generate from the
+  // schema builder — guard triggers/role (INV-1) and the app_user-on-signup
+  // trigger (FIX-1). Order matters: 0002 assumes app_user already exists.
   let invariantsSql = readFileSync(
     path.join(__dirname, 'sql/0001_guard_invariants.sql'),
     'utf-8',
@@ -42,6 +42,12 @@ async function main() {
     const triggerOnly = invariantsSql.split('-- FIX-4')[0] ?? invariantsSql;
     await migrationClient.unsafe(triggerOnly);
   }
+
+  const appUserTriggerSql = readFileSync(
+    path.join(__dirname, 'sql/0002_create_app_user_on_signup.sql'),
+    'utf-8',
+  );
+  await migrationClient.unsafe(appUserTriggerSql);
 
   await migrationClient.end();
   console.log('Migrations + invariant guards applied.');

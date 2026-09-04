@@ -42,3 +42,20 @@ export const memberSchema = z.object({
   displayName: z.string().min(1),
   timezone: z.string().min(1),
 });
+
+// auth.* — engineering-spec.md §5. E.164: a leading '+', country code, up to
+// 15 digits total, no punctuation — the exact shape Supabase's phone auth
+// and Twilio both expect, so validating it here instead of trusting the
+// client saves both of them from ever seeing a malformed number.
+export const phoneE164Schema = z
+  .string()
+  .regex(/^\+[1-9]\d{1,14}$/, 'expected an E.164 phone number, e.g. +15195551234');
+
+export const requestOtpInputSchema = z.object({
+  phone: phoneE164Schema,
+});
+
+export const verifyOtpInputSchema = z.object({
+  phone: phoneE164Schema,
+  code: z.string().regex(/^\d{6}$/, 'expected a 6-digit code'),
+});

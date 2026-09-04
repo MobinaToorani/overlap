@@ -126,7 +126,7 @@ Every non-negotiable invariant needs a test; where one genuinely can't run yet (
 
 ## Where things stand
 
-Full board: [`docs/backlog.md`](docs/backlog.md). Short version: repo scaffold (T1), full DB schema (T2, minus the live-DB trigger test), and the overlap engine (T5/T5b) are done and tested. Auth, the Signal UI, the heatmap UI, calendar sync, plans/invites, and the notification dispatcher are all still ahead — see the backlog for the exact sequence, which is deliberately one-ticket-at-a-time (`docs/agent-prompt.md`'s ground rules explain why: long autonomous runs on a greenfield product produce plausible code that violates the invariants, and the invariants are the product).
+Full board: [`docs/backlog.md`](docs/backlog.md). Short version: repo scaffold (T1), full DB schema (T2, minus the live-DB trigger test), the overlap engine (T5/T5b), and phone OTP auth (T3) are done and unit-tested. T3's actual login flow — "two phones can OTP-login" — hasn't been verified against a real phone yet, because it needs a live Supabase project's credentials in `apps/web/.env.local`, which nobody has provisioned yet. The Signal UI, the heatmap UI, calendar sync, plans/invites, and the notification dispatcher are all still ahead — see the backlog for the exact sequence, which is deliberately one-ticket-at-a-time (`docs/agent-prompt.md`'s ground rules explain why: long autonomous runs on a greenfield product produce plausible code that violates the invariants, and the invariants are the product).
 
 ## Documentation map
 
