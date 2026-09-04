@@ -39,6 +39,17 @@ END $$;
 
 GRANT SELECT, INSERT, UPDATE ON busy_block TO overlap_worker;
 GRANT SELECT ON signal, app_user, grp, group_member TO overlap_worker;
+-- Gap found auditing this against engineering-spec.md §6: the spec's own
+-- GRANT list (copied above verbatim) never grants overlap_worker anything
+-- on signal_night, even though §6 says calendar_sync "writes signal_night
+-- only as blocked/no_known_conflict". Without this line the worker role
+-- can't write to signal_night AT ALL — not "can't write confirmed_free",
+-- can't write anything, which would break T9 entirely the first time it
+-- runs. Adding the grant doesn't weaken INV-1: guard_worker_role (below)
+-- still rejects 'confirmed_free' from this role regardless of table-level
+-- permissions, so this is purely fixing an oversight, not loosening the
+-- guarantee.
+GRANT SELECT, INSERT, UPDATE ON signal_night TO overlap_worker;
 
 CREATE OR REPLACE FUNCTION guard_worker_role() RETURNS trigger AS $$
 BEGIN

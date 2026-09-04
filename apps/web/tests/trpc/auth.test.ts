@@ -27,7 +27,10 @@ describe('auth.requestOtp', () => {
   it('rejects with TOO_MANY_REQUESTS and never calls Supabase when the per-phone limit is tripped', async () => {
     const supabaseAuth = fakeSupabaseAuth();
     const caller = appRouter.createCaller(
-      createTestContext({ supabaseAuth, byPhone: { check: async () => ({ allowed: false }) } }),
+      createTestContext({
+        supabaseAuth,
+        requestByPhone: { check: async () => ({ allowed: false }) },
+      }),
     );
 
     await expect(caller.auth.requestOtp({ phone: '+15195551234' })).rejects.toMatchObject({
@@ -39,7 +42,10 @@ describe('auth.requestOtp', () => {
   it('rejects with TOO_MANY_REQUESTS when the per-IP limit is tripped, even if the per-phone limit is fine', async () => {
     const supabaseAuth = fakeSupabaseAuth();
     const caller = appRouter.createCaller(
-      createTestContext({ supabaseAuth, byIp: { check: async () => ({ allowed: false }) } }),
+      createTestContext({
+        supabaseAuth,
+        requestByIp: { check: async () => ({ allowed: false }) },
+      }),
     );
 
     await expect(caller.auth.requestOtp({ phone: '+15195551234' })).rejects.toMatchObject({
@@ -103,6 +109,21 @@ describe('auth.verifyOtp', () => {
     await expect(
       caller.auth.verifyOtp({ phone: '+15195551234', code: '123' }),
     ).rejects.toThrow();
+    expect(supabaseAuth.verifyOtp).not.toHaveBeenCalled();
+  });
+
+  it('rejects with TOO_MANY_REQUESTS and never calls Supabase when verify attempts are exhausted', async () => {
+    const supabaseAuth = fakeSupabaseAuth();
+    const caller = appRouter.createCaller(
+      createTestContext({
+        supabaseAuth,
+        verifyByPhone: { check: async () => ({ allowed: false }) },
+      }),
+    );
+
+    await expect(
+      caller.auth.verifyOtp({ phone: '+15195551234', code: '123456' }),
+    ).rejects.toMatchObject({ code: 'TOO_MANY_REQUESTS' });
     expect(supabaseAuth.verifyOtp).not.toHaveBeenCalled();
   });
 });

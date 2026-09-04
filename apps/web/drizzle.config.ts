@@ -17,4 +17,11 @@ export default defineConfig({
   },
   strict: true,
   verbose: true,
+  // Defense in depth alongside schema.ts's real fix (authUsers is
+  // deliberately NOT exported from schema.ts, so drizzle-kit's `generate`
+  // never sees it as a table to manage — see that file's comment). This
+  // additionally stops `generate`/`push` from touching anything outside
+  // `public` even if a future schema.ts change re-exports something from
+  // another schema without thinking it through.
+  schemaFilter: ['public'],
 });

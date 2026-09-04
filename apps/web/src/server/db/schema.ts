@@ -31,8 +31,19 @@ import { sql } from 'drizzle-orm';
 // foreign-key against it. Do not add columns here; auth.users is owned by
 // Supabase Auth, not by this schema. FIX-1: app_user.id MUST reference this,
 // never an independently generated uuid.
+//
+// Deliberately NOT exported. `drizzle-kit generate` finds tables by
+// scanning this module's exports, so an exported authUsers gets treated as
+// a table THIS schema owns and creates — producing a migration with
+// `CREATE TABLE "auth"."users"` and no `CREATE SCHEMA "auth"` first, which
+// fails against a fresh non-Supabase Postgres and, even against Supabase,
+// asserts a one-column table that isn't what Supabase actually provisions.
+// Keeping this unexported still lets appUser's `.references()` below
+// resolve it (same module) while hiding it from drizzle-kit entirely — the
+// generated migration correctly emits the FK constraint
+// (`REFERENCES "auth"."users"("id")`) without trying to create the table.
 const authSchema = pgSchema('auth');
-export const authUsers = authSchema.table('users', {
+const authUsers = authSchema.table('users', {
   id: uuid('id').primaryKey(),
 });
 

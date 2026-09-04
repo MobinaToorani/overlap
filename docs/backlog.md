@@ -7,7 +7,7 @@ One ticket in flight at a time — see `docs/agent-prompt.md`'s ground rules. A 
 | Ticket | What | Sprint | Status |
 |---|---|---|---|
 | T1 | Repo scaffold: pnpm monorepo, Next.js 15, TS strict, Tailwind v4, Drizzle, Vitest, CI | 1 | ✅ Done — this pass |
-| T2 | Full DB schema as Drizzle migrations, incl. `guard_confirmed_free` trigger; OV-6 written first | 1 | 🟡 Schema + guard SQL written this pass; OV-6 itself needs a live-Postgres integration test (see `apps/web/tests/services/overlap.test.ts`'s `it.todo`) — not yet run against a real DB |
+| T2 | Full DB schema as Drizzle migrations, incl. `guard_confirmed_free` trigger; OV-6 written first | 1 | 🟡 Schema, generated migration (`0000_initial_schema.sql`), and guard/FIX-1 SQL all written and reviewed (an audit pass on 2026-09-04 found and fixed a broken migration pipeline — nobody had run `drizzle-kit generate` before — plus a missing `signal_night` GRANT for `overlap_worker`, see ADR-0005). Still not run against a real Postgres — no DB provisioned yet, so OV-6 (`apps/web/tests/services/overlap.test.ts`'s `it.todo`) and the migration itself remain unverified against a live database |
 | T3 | Phone OTP auth via Supabase; login, session, protected route wrapper | 1 | 🟡 Code + unit tests done this pass (auth router, session middleware, FIX-1 trigger, FIX-9 rate limiting). Sprint 1 DoD's "two phones can OTP-login" is **not yet verified** — needs a real Supabase project's URL/keys in `.env.local`; nobody has done that yet |
 | T4 | Group create, join-by-code, member list, group home shell | 1 | ⬜ Not started |
 | T5 | `resolveSignals()` — precedence, dedup, freshness downgrade; RS-1..RS-4 | 2 | ✅ Done — this pass, all 4 tests passing |

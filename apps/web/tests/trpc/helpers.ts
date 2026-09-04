@@ -19,8 +19,9 @@ export function fakeSupabaseAuth() {
  * field. */
 export function createTestContext(overrides: {
   supabaseAuth?: ReturnType<typeof fakeSupabaseAuth>;
-  byPhone?: RateLimiter;
-  byIp?: RateLimiter;
+  requestByPhone?: RateLimiter;
+  requestByIp?: RateLimiter;
+  verifyByPhone?: RateLimiter;
   user?: Context['user'];
   ip?: string;
 } = {}): Context {
@@ -30,8 +31,9 @@ export function createTestContext(overrides: {
     supabase: { auth: supabaseAuth } as unknown as Context['supabase'],
     user: overrides.user ?? null,
     otpRateLimiters: {
-      byPhone: overrides.byPhone ?? alwaysAllow,
-      byIp: overrides.byIp ?? alwaysAllow,
+      requestByPhone: overrides.requestByPhone ?? alwaysAllow,
+      requestByIp: overrides.requestByIp ?? alwaysAllow,
+      verifyByPhone: overrides.verifyByPhone ?? alwaysAllow,
     },
     ip: overrides.ip ?? '127.0.0.1',
   };
