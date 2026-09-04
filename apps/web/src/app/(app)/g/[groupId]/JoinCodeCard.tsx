@@ -11,9 +11,16 @@ export function JoinCodeCard({ joinCode }: { joinCode: string }) {
       <button
         type="button"
         onClick={async () => {
-          await navigator.clipboard.writeText(joinCode);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
+          try {
+            await navigator.clipboard.writeText(joinCode);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          } catch {
+            // Clipboard access can be denied (permissions, insecure
+            // context, some in-app browsers) — the code is still visible
+            // and selectable in the span above, so this fails quietly
+            // rather than throwing an unhandled rejection.
+          }
         }}
         className="text-sm text-accent underline"
       >

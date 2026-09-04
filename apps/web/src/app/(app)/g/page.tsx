@@ -21,7 +21,11 @@ export default function GroupsIndexPage() {
     onSuccess: (group) => router.push(`/g/${group.id}`),
   });
 
-  const error = create.error?.message ?? join.error?.message;
+  // Scoped to the currently visible form, not just "whichever mutation
+  // last had an error" — switching from create to join without
+  // resubmitting create shouldn't leave create's stale error message
+  // showing under the join form.
+  const error = mode === 'create' ? create.error?.message : mode === 'join' ? join.error?.message : undefined;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-6">

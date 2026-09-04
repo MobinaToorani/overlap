@@ -2,6 +2,9 @@ import {
   groupCreateInputSchema,
   groupIdInputSchema,
   groupJoinByCodeInputSchema,
+  type Group,
+  type GroupSummary,
+  type GroupWithMembers,
 } from '@overlap/shared';
 import { TRPCError } from '@trpc/server';
 import { and, eq, isNull } from 'drizzle-orm';
@@ -23,7 +26,7 @@ const MAX_JOIN_CODE_ATTEMPTS = 5;
  * fills an actual gap rather than adding speculative surface.
  */
 export const groupRouter = createTRPCRouter({
-  create: protectedProcedure.input(groupCreateInputSchema).mutation(async ({ ctx, input }) => {
+  create: protectedProcedure.input(groupCreateInputSchema).mutation(async ({ ctx, input }): Promise<Group> => {
     const db = ctx.db();
 
     for (let attempt = 0; attempt < MAX_JOIN_CODE_ATTEMPTS; attempt++) {
@@ -66,7 +69,7 @@ export const groupRouter = createTRPCRouter({
 
   joinByCode: protectedProcedure
     .input(groupJoinByCodeInputSchema)
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ ctx, input }): Promise<Group> => {
       // engineering-spec.md §5.2: 10/hour per IP, to prevent brute-forcing
       // join codes.
       const { allowed } = await ctx.rateLimiters.groupJoinByIp.check(ctx.ip);
@@ -107,7 +110,7 @@ export const groupRouter = createTRPCRouter({
       };
     }),
 
-  get: protectedProcedure.input(groupIdInputSchema).query(async ({ ctx, input }) => {
+  get: protectedProcedure.input(groupIdInputSchema).query(async ({ ctx, input }): Promise<GroupWithMembers> => {
     const db = ctx.db();
 
     const [group] = await db
@@ -155,7 +158,7 @@ export const groupRouter = createTRPCRouter({
     };
   }),
 
-  listMine: protectedProcedure.query(async ({ ctx }) => {
+  listMine: protectedProcedure.query(async ({ ctx }): Promise<GroupSummary[]> => {
     const db = ctx.db();
 
     return db
