@@ -1,7 +1,7 @@
 # Overlap — Engineering Specification
 
-**Version:** 1.1 (post-audit)
-**Companion to:** `overlap-master-doc.md` v0.2
+**Version:** 1.2 (post-audit, freshness rule corrected 2026-09-04)
+**Companion to:** `overlap-master-doc.md` v0.3
 **Audience:** the implementing agent (and future you)
 **Purpose:** remove every decision an agent would otherwise invent
 
@@ -353,14 +353,18 @@ The most important file in the codebase. `apps/web/src/server/services/overlap.t
 
 > **Rule: for any given date, the night from the most recently submitted signal wins.** Deduplicate by `(user_id, date)`, ordered by `signal.submitted_at DESC`, take the first.
 
-**Freshness for the current week.** A `confirmed_free` night in week 0 of a signal submitted more than 7 days ago is stale — the user confirmed it under different circumstances. Downgrade it:
+**Freshness.** A confirmation is only as good as the moment it was made. Once a signal is more than 7 days old, none of its nights still count as a hard yes — whichever of its three weeks they sat in. Downgrade them:
 
 ```
-if night.horizon_week == 0 and signal.submitted_at < (now - 7 days):
+if night.state == 'confirmed_free' and signal.submitted_at < (now - 7 days):
     treat state as 'no_known_conflict'   # displays, does not score
 ```
 
 This is how progressive decay (master doc §2.3d) is actually implemented. There is no expiry job and no `expires_at` column — decay is a read-time concern, computed here.
+
+> **Corrected 2026-09-04 (v1.2).** This rule previously applied only to `horizon_week == 0`, which contradicted master doc §2.3d ("weeks two and three persist but are marked **unconfirmed** … skip repeatedly and you fade out of the picture entirely"). The narrower rule meant an abandoned signal kept asserting hard confirmations for its weeks 1 and 2 for a full fortnight: someone who tapped a night on the 6th and never returned still showed as *confirmed free* on the 20th. A two-week-old guess presented as a friend saying yes is precisely the over-reporting audit finding **A2** exists to prevent, and it meant skipping had no consequence, defeating §2.3d's decay design. Test **RS-5** covers it.
+>
+> Note the horizon week is no longer consulted here at all. `signal_night.horizon_week` is still stored — it records which week of its own signal a night belonged to, which the analytics event `signal_completed.horizon_weeks_touched` (§11) reports on — but it no longer affects resolution.
 
 **Required additional tests:**
 
@@ -370,6 +374,7 @@ This is how progressive decay (master doc §2.3d) is actually implemented. There
 | RS-2 | Two signals from consecutive weeks cover the same date differently | Most recent `submitted_at` wins; exactly one night per user per date |
 | RS-3 | Week-0 `confirmed_free` from a 9-day-old signal | Downgraded to soft; excluded from `confirmedCount` |
 | RS-4 | User has no signal at all | Contributes to `memberCount`, not to `confirmedCount` or `softCount` |
+| RS-5 | Abandoned signal: `confirmed_free` nights in weeks 0, 1 **and** 2, submitted 14 days ago | All three downgraded to soft; `confirmedCount` 0, night still visible, no headline. The member has faded from the picture without being scolded (§2.3d) |
 
 ### Signature
 

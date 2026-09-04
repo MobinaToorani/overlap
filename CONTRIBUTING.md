@@ -42,6 +42,7 @@ Read in this order for context, most-durable first:
 
 1. `docs/overlap-master-doc.md` — product intent, wins on intent when it conflicts with the spec
 2. `docs/engineering-spec.md` — implementation contract, wins on implementation detail
-3. `docs/adr/` — decisions made *while building*, not written into the spec
-4. `docs/backlog.md` — current state
-5. `docs/agent-prompt.md` — the standing instructions for whoever (human or agent) is implementing a ticket
+3. `docs/audit-report.md` — defects found in the implementation, and the two spec corrections that came out of them
+4. `docs/adr/` — decisions made *while building*, not written into the spec
+5. `docs/backlog.md` — current state
+6. `docs/agent-prompt.md` — the standing instructions for whoever (human or agent) is implementing a ticket

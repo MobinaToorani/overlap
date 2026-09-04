@@ -6,7 +6,7 @@ A rolling three-week heatmap of when a friend group is collectively free, fed by
 
 [![CI](https://github.com/MobinaToorani/overlap/actions/workflows/ci.yml/badge.svg)](https://github.com/MobinaToorani/overlap/actions/workflows/ci.yml)
 
-> **Status: pre-launch, private repo.** v1 scope is T1-T22 in [`docs/backlog.md`](docs/backlog.md) — this codebase currently has the repo scaffold, the full DB schema, the overlap engine (the core algorithm), phone OTP auth, and group create/join/membership done and unit-tested. No live database has been provisioned yet, so nothing has run against real Postgres. No Signal, heatmap, calendar sync, or worker yet. See [Where things stand](#where-things-stand).
+> **Status: pre-launch, private repo.** v1 scope is T1-T22 in [`docs/backlog.md`](docs/backlog.md) — built so far: the repo scaffold, the full DB schema, the overlap engine, phone OTP auth, groups, the Signal, and the heatmap (T1-T7). Schema, invariant triggers and the Signal→heatmap chain are verified against a live Supabase database; phone login still waits on Twilio. No calendar sync or worker yet. See [Where things stand](#where-things-stand).
 
 ---
 
@@ -41,10 +41,10 @@ Calendar sync is a **draft input only** — it can remove a night (hard conflict
 
 The overlap engine is two pure functions, zero I/O, fully unit-tested:
 
-- **`resolveSignals()`** ([`apps/web/src/server/services/signals.ts`](apps/web/src/server/services/signals.ts)) resolves two ambiguities a naive implementation gets wrong: a group-scoped signal always shadows a global one for the same week (never merged), and where two signals' 21-day horizons overlap, the most recently submitted one wins per date. It also applies the week-0 freshness downgrade (a `confirmed_free` night from a signal submitted over 7 days ago is stale and reads as unconfirmed). Runs in **O(n)** in the number of nights — every night is inspected exactly once, which is also the theoretical floor.
+- **`resolveSignals()`** ([`apps/web/src/server/services/signals.ts`](apps/web/src/server/services/signals.ts)) resolves two ambiguities a naive implementation gets wrong: a group-scoped signal always shadows a global one for the same week (never merged), and where two signals' 21-day horizons overlap, the most recently submitted one wins per date. It also applies freshness decay: once a signal is more than 7 days old none of its nights still count as a hard yes, whichever of its three weeks they sat in — so someone who stops signalling fades from the picture rather than asserting stale confirmations. Runs in **O(n)** in the number of nights — every night is inspected exactly once, which is also the theoretical floor.
 - **`computeOverlap()`** ([`apps/web/src/server/services/overlap.ts`](apps/web/src/server/services/overlap.ts)) turns resolved per-member availability into the 21-night heatmap: confirmed counts, vibe bands, the best night (earliest date wins ties), and a plain-language headline — built from confirmed members only. Also **O(n)** in the number of resolved member-nights, via a single pass building per-date accumulators rather than re-scanning members per date.
 
-Both treat every date as an opaque `YYYY-MM-DD` string and do all arithmetic in UTC ([`dateUtils.ts`](apps/web/src/server/services/dateUtils.ts)) — never via `new Date(str)` plus local `getDate()`/`getDay()`, which would silently misbucket nights depending on the *server's* timezone or a DST transition. See [ADR-0002](docs/adr/0002-overlap-engine-is-two-pure-functions.md) for the full reasoning.
+Both treat every date as an opaque `YYYY-MM-DD` string and do all arithmetic in UTC ([`dateUtils.ts`](apps/web/src/lib/dateUtils.ts)) — never via `new Date(str)` plus local `getDate()`/`getDay()`, which would silently misbucket nights depending on the *server's* timezone or a DST transition. See [ADR-0002](docs/adr/0002-overlap-engine-is-two-pure-functions.md) for the full reasoning.
 
 ## Non-negotiable invariants
 
@@ -83,7 +83,7 @@ overlap/
 │   ├── web/                 Next.js app — UI, tRPC API, the overlap engine
 │   │   ├── src/app/         Route groups: (auth), (app)/g/[groupId], p/[slug] (public), api/
 │   │   ├── src/server/      db/ (Drizzle schema + invariant SQL), services/ (the engine), trpc/
-│   │   └── tests/           OV-1..10, RS-1..4, and dateUtils tests
+│   │   └── tests/           unit, schema (pg-mem), and live-Postgres tiers
 │   └── worker/               Python skeleton — directory shape only until T8
 ├── packages/
 │   └── shared/               Types + zod schemas shared web ↔ worker contract
@@ -94,6 +94,7 @@ overlap/
     ├── founder-checklist.md     Tasks only the founder can do (legal, A2P 10DLC, OAuth verification)
     ├── marketing-plan.md        GTM
     ├── backlog.md               T1-T22 status board
+    ├── audit-report.md          implementation defects found, and how
     └── adr/                     Decisions made while building, not written into the spec
 ```
 

@@ -99,12 +99,20 @@ export function resolveSignals(input: {
       for (const night of signal.nights) {
         if (resolvedNights.has(night.date)) continue; // a more recent signal already claimed this date
 
+        // Freshness. A confirmation is only as good as the moment it was
+        // made: once a signal is more than a week old, nothing in it still
+        // counts as a hard "yes", whichever of its three weeks the night
+        // sat in. This is what makes master doc §2.3d's "skip repeatedly
+        // and you fade out of the picture" actually happen.
+        //
+        // Earlier this only downgraded horizon week 0, per an earlier
+        // reading of engineering-spec.md §4.0. That left an abandoned
+        // signal asserting hard confirmations for its weeks 1 and 2 for a
+        // full fortnight — a two-week-old guess presented as a friend
+        // saying yes, which is exactly the over-reporting audit finding A2
+        // exists to prevent. Both documents now describe the rule below.
         let state: NightState = night.state;
-        if (
-          night.horizonWeek === 0 &&
-          state === 'confirmed_free' &&
-          nowMs - submittedMs > FRESHNESS_WINDOW_MS
-        ) {
+        if (state === 'confirmed_free' && nowMs - submittedMs > FRESHNESS_WINDOW_MS) {
           state = 'no_known_conflict';
         }
         resolvedNights.set(night.date, { state, vibe: signal.vibe });

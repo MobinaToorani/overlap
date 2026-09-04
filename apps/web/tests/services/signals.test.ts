@@ -160,3 +160,61 @@ describe('resolveSignals', () => {
     });
   });
 });
+
+describe('freshness decay across the whole horizon', () => {
+  it('RS-5: an abandoned signal stops asserting hard confirmations in every week, not just week 0', () => {
+    // The scenario that motivated the rule change: someone signals, taps
+    // nights across all three weeks, then never signals again. Two weeks
+    // later none of it should still read as a friend saying yes (A2), and
+    // they should have faded from the headline (master doc §2.3d).
+    const signal = makeSignal({
+      userId: 'a',
+      groupId: null,
+      weekStartDate: '2026-09-06',
+      vibe: 'down_for_anything',
+      submittedAt: '2026-09-06T19:00:00.000Z',
+      nights: [
+        { date: '2026-09-10', state: 'confirmed_free', horizonWeek: 0 },
+        { date: '2026-09-17', state: 'confirmed_free', horizonWeek: 1 },
+        { date: '2026-09-24', state: 'confirmed_free', horizonWeek: 2 },
+      ],
+    });
+
+    const now = new Date('2026-09-20T12:00:00.000Z'); // 14 days later
+    const resolved = resolveSignals({ signals: [signal], groupId: GROUP, now });
+
+    for (const date of ['2026-09-10', '2026-09-17', '2026-09-24']) {
+      expect(resolved.get('a')!.get(date)!.state).toBe('no_known_conflict');
+    }
+
+    const overlap = computeOverlap({
+      groupId: GROUP,
+      members: members(['a']),
+      resolved,
+      signalledUserIds: new Set(), // hasn't signalled this week
+      today: now,
+    });
+    const night = overlap.nights.find((n) => n.date === '2026-09-24')!;
+    expect(night.confirmedCount).toBe(0); // faded out of the count
+    expect(night.softCount).toBe(1); // still visible, at reduced weight
+    expect(overlap.headline).toBeNull();
+  });
+
+  it('a signal still inside the freshness window keeps its later weeks confirmed', () => {
+    // The other side of the rule: freshly tapped week-1 and week-2 nights
+    // are real confirmations and must still score, or the Signal's
+    // three-week horizon would be pointless.
+    const signal = makeSignal({
+      userId: 'a',
+      groupId: null,
+      weekStartDate: '2026-09-06',
+      vibe: 'down_for_anything',
+      submittedAt: '2026-09-06T19:00:00.000Z',
+      nights: [{ date: '2026-09-24', state: 'confirmed_free', horizonWeek: 2 }],
+    });
+
+    const now = new Date('2026-09-09T12:00:00.000Z'); // 3 days later
+    const resolved = resolveSignals({ signals: [signal], groupId: GROUP, now });
+    expect(resolved.get('a')!.get('2026-09-24')!.state).toBe('confirmed_free');
+  });
+});

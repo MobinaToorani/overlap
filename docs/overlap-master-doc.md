@@ -2,7 +2,7 @@
 
 *Working codename. Alternate names in §14.*
 
-**Version:** 0.2 (Post-audit revision)
+**Version:** 0.3 (decay rule clarified 2026-09-04)
 **Owner:** Mobina Toorani (Strange Attractor)
 **Date:** September 2026
 **Status:** Pre-build. This document is the source of truth until v1 ships.
@@ -229,7 +229,9 @@ Ten seconds of input from one person creates value for every other member. This 
 The user submits and instantly learns something they did not know and could not have computed: *the group's best night.* Every ritual must end in a reward. A ritual that ends in "thanks, saved" is dead within three weeks.
 
 **d) Decay creates loss aversion, not guilt.**
-Signals decay progressively rather than snapping to zero: the current week expires Saturday night, while weeks two and three persist but are marked **unconfirmed** — shown in the heatmap at reduced weight and excluded from headline counts. Skip repeatedly and you fade out of the picture entirely. You are never scolded; plans simply get made without you. This is more motivating than a nag and more honest than one: the app cannot represent you if you have not told it anything.
+Signals decay progressively rather than snapping to zero. A confirmation is only as good as the moment it was made: **seven days after you signal, everything you tapped stops counting as a hard yes and becomes merely unconfirmed** — still shown in the heatmap, at reduced weight, but excluded from headline counts. Skip repeatedly and you fade out of the picture entirely. You are never scolded; plans simply get made without you. This is more motivating than a nag and more honest than one: the app cannot represent you if you have not told it anything.
+
+> **Clarified 2026-09-04 (v0.3).** This paragraph previously said "the current week expires Saturday night, while weeks two and three persist but are marked unconfirmed," which read to the implementer as *only* week one decaying — and the engineering spec had encoded exactly that. The effect was that an abandoned signal kept asserting hard confirmations for its later two weeks for a fortnight, so skipping had no consequence and the heatmap over-reported availability (the A2 failure). One timer, applied to the whole signal, is both simpler and what this section always intended. See `engineering-spec.md` §4.0.
 
 **e) It defeats the Dead Interval by design.**
 The app no longer needs a plan in flight to be opened. It has a heartbeat: 52 guaranteed sessions per user per year, each one refreshing the exact data the product runs on. The Signal *is* the retention loop.

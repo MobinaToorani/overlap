@@ -12,10 +12,16 @@
 import { config as loadEnv } from 'dotenv';
 import postgres from 'postgres';
 import { sql as sqlTag } from 'drizzle-orm';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 loadEnv({ path: '.env.local' });
 loadEnv({ path: '.env' });
+
+// Every test here is network-bound against a hosted database, and the
+// multi-step ones make a dozen or more round trips. Vitest's 5s default is
+// for pure functions; leaving it would make this file fail intermittently
+// on latency alone, and a suite that cries wolf stops being read.
+vi.setConfig({ testTimeout: 60_000, hookTimeout: 60_000 });
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const sql = DATABASE_URL ? postgres(DATABASE_URL, { max: 1, onnotice: () => {} }) : null;
