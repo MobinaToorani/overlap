@@ -93,7 +93,9 @@ overlap/
     ├── agent-prompt.md          Standing instructions for whoever builds a ticket
     ├── founder-checklist.md     Tasks only the founder can do (legal, A2P 10DLC, OAuth verification)
     ├── marketing-plan.md        GTM
-    ├── backlog.md               T1-T22 status board
+    ├── README.md                index + precedence order — start here
+    ├── backlog.md               T1-T25 status board
+    ├── traceability.md          every rule → its ticket → its test
     ├── audit-report.md          the design audit (A1-A11, FIX-1-FIX-12)
     ├── implementation-audit.md  defects found in the code, and how
     └── adr/                     Decisions made while building, not written into the spec
@@ -134,7 +136,7 @@ Full board: [`docs/backlog.md`](docs/backlog.md), which is the designated status
 
 ## Documentation map
 
-Read in this order for context, most-durable first: [`overlap-master-doc.md`](docs/overlap-master-doc.md) (intent) → [`engineering-spec.md`](docs/engineering-spec.md) (contract) → [`docs/adr/`](docs/adr/) (decisions made while building) → [`docs/backlog.md`](docs/backlog.md) (current state) → [`agent-prompt.md`](docs/agent-prompt.md) (standing build instructions). Business-side docs: [`founder-checklist.md`](docs/founder-checklist.md), [`marketing-plan.md`](docs/marketing-plan.md).
+**Start at [`docs/README.md`](docs/README.md)**, which indexes every document and states which one wins when two disagree. Otherwise, in order, most-durable first: [`overlap-master-doc.md`](docs/overlap-master-doc.md) (intent) → [`engineering-spec.md`](docs/engineering-spec.md) (contract) → [`docs/adr/`](docs/adr/) (decisions made while building) → [`docs/backlog.md`](docs/backlog.md) (current state) → [`agent-prompt.md`](docs/agent-prompt.md) (standing build instructions). Business-side docs: [`founder-checklist.md`](docs/founder-checklist.md), [`marketing-plan.md`](docs/marketing-plan.md).
 
 ## Contributing
 

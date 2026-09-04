@@ -14,6 +14,8 @@
 
 - [ ] `pnpm lint && pnpm typecheck && pnpm test && pnpm build` all pass
 - [ ] `docs/backlog.md` Status column updated for the ticket(s) this closes
+- [ ] `docs/traceability.md` row updated if this touches an invariant, an A-/FIX-/IMP-/X- finding, or adds a test that proves one
+- [ ] If this changed a rule in one spec, the other spec changed in the same commit (and both versions bumped)
 - [ ] Every invariant this PR could violate has a test (or an `it.todo` explaining what's blocking one)
 - [ ] New dependencies, if any, were justified in a PR comment per `docs/engineering-spec.md` §1
-- [ ] Confirmed on a real phone (required before a ticket counts as done — `docs/engineering-spec.md` §12)
+- [ ] Verified-live boxes for this ticket recorded in `docs/backlog.md` — **not** required to merge (ADR-0007/X-20 splits the DoD: code-complete blocks the next ticket, verified-live blocks the pilot), but no verified-live box may still be open at M4

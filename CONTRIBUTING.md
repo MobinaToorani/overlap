@@ -8,9 +8,10 @@ There's no ceremony overhead — no sprints-as-meetings, no standups — because
 
 1. **One ticket at a time**, from `docs/backlog.md` / `docs/agent-prompt.md`'s T1-T22 sequence. Open a branch per ticket, PR per ticket. Don't start T(n+1) before T(n) is merged and its `docs/engineering-spec.md` §12 checklist is satisfied.
 2. **Update `docs/backlog.md`'s Status column in the same PR** that finishes a ticket. The backlog is the source of truth for "where are we," not memory or chat history.
-3. **Every non-negotiable invariant (`docs/engineering-spec.md` §0, INV-1..INV-8) needs a test.** If a PR touches code that could violate one and doesn't add or update a test for it, that's a blocking review comment, not a nitpick. If something genuinely can't be tested yet (needs infra that doesn't exist), say so explicitly — `it.todo(...)` with a comment explaining what's missing, not a silently absent test.
-4. **Record a decision, not just the code, when you pick between two reasonable approaches.** See `docs/adr/` — a short ADR, not a design doc. Most changes don't need one; see `docs/adr/README.md` for when they do.
-5. **No dependency or scope additions beyond `docs/engineering-spec.md` §1 and the v1 feature set (§6.1, and NOT §13) without a one-paragraph case first.** This is the rule most likely to get bent under deadline pressure — it's also the one the founder has explicitly said to hold the line on.
+3. **Update `docs/traceability.md` in the same PR** when you touch an invariant or an audit finding, or add a test that proves one. A coherence audit found five accepted corrections with spec surface and no ticket — they would never have been built, and nothing would have noticed. That matrix is what makes such gaps visible, and it only works if it moves with the work.
+4. **Every non-negotiable invariant (`docs/engineering-spec.md` §0, INV-1..INV-8) needs a test.** If a PR touches code that could violate one and doesn't add or update a test for it, that's a blocking review comment, not a nitpick. If something genuinely can't be tested yet (needs infra that doesn't exist), say so explicitly — `it.todo(...)` with a comment explaining what's missing, not a silently absent test.
+5. **Record a decision, not just the code, when you pick between two reasonable approaches.** See `docs/adr/` — a short ADR, not a design doc. Most changes don't need one; see `docs/adr/README.md` for when they do.
+6. **No dependency or scope additions beyond `docs/engineering-spec.md` §1 and the v1 feature set (§6.1, and NOT §13) without a one-paragraph case first.** This is the rule most likely to get bent under deadline pressure — it's also the one the founder has explicitly said to hold the line on.
 
 ## Before opening a PR
 
@@ -38,12 +39,6 @@ Small, reviewable commits. Say what changed and, if it's not obvious from the di
 
 ## Docs map
 
-Read in this order for context, most-durable first:
+**Start at [`docs/README.md`](docs/README.md)** — it indexes all eleven documents and states the precedence order for when two of them disagree.
 
-1. `docs/overlap-master-doc.md` — product intent, wins on intent when it conflicts with the spec
-2. `docs/engineering-spec.md` — implementation contract, wins on implementation detail
-3. `docs/audit-report.md` — the adversarial audit of the product design itself (findings A1-A11, FIX-1-FIX-12)
-4. `docs/implementation-audit.md` — defects found in the code, and the two spec corrections that came out of them
-5. `docs/adr/` — decisions made *while building*, not written into the spec
-6. `docs/backlog.md` — current state
-7. `docs/agent-prompt.md` — the standing instructions for whoever (human or agent) is implementing a ticket
+The two you will reach for most: `docs/backlog.md` for what is built, and `docs/traceability.md` for whether a given rule is actually enforced and proven.

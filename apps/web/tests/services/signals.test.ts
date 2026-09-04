@@ -68,7 +68,7 @@ describe('resolveSignals', () => {
     expect(nights.get(dateAt(2))!.state).toBe('confirmed_free'); // the newer submission won
   });
 
-  it('RS-3: week-0 confirmed_free from a 9-day-old signal is downgraded and excluded from confirmedCount', () => {
+  it('RS-3: a confirmed_free night from a 9-day-old signal is downgraded and excluded from confirmedCount', () => {
     const d = dateAt(1);
     const signal = makeSignal({
       userId: 'a',
