@@ -89,7 +89,7 @@ Work in this order. Do not skip ahead.
   T3  Phone OTP auth via Supabase. Login, session, protected route wrapper.
   T4  Group create, join-by-code, member list, group home shell.
   T5  resolveSignals() per §4.0 — global vs group-scoped precedence, overlapping
-      horizon dedup, week-0 freshness downgrade. Tests RS-1..RS-4. Build this
+      horizon dedup, freshness downgrade. Tests RS-1..RS-5. Build this
       BEFORE computeOverlap; the engine is meaningless without it.
   T5b The overlap engine (§4) as a pure function with zero I/O, plus all ten
       unit tests. Build this BEFORE any UI that consumes it.

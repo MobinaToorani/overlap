@@ -677,10 +677,10 @@ The M5 gate asks whether the ritual works. If pushes silently fail to arrive, th
 Enforce A2 in code, not convention: the sync job may only write `signal_night.state = 'blocked'` or `'no_known_conflict'`. It is never permitted to write `'confirmed_free'` — that value is settable only by an authenticated user action. Add a database constraint or trigger so a future contributor cannot quietly "improve" pre-fill into assertion.
 
 **Signal dispatch must be timezone-correct.**
-A cron running hourly checks: for each group, which members are currently at 19:00 local on the group's signal day and have not yet received this week's push. Group members can be in different timezones; the dispatch is per-user, the deadline is per-group-week. Idempotency key: `(user_id, group_id, week_start_date)`.
+A cron running hourly checks: for each group, which members are currently at 19:00 local on the group's signal day and have not yet received this week's push. Group members can be in different timezones; the dispatch is per-user, the deadline is per-group-week. Idempotency key: `signal:{user_id}:{week_start_date}` — **not** per-group. Keying it per group would send a user in three groups three Sunday Signals, which is exactly the ritual-multiplication A4 corrected, and would consume three of the four notification slots FIX-3 reserves one of. Where a user's groups disagree on `signal_dow` / `signal_hour` / `cadence_weeks`, dispatch at the **earliest** local slot among them, in any week where **any** of their groups is due.
 
 **Decay is a read-time concern, not a write-time job.**
-Do not run a job that deletes signals. A signal has `expires_at`; the overlap query simply ignores expired rows. This keeps history intact for analytics and avoids a destructive scheduled job.
+Do not run a job that deletes signals, and do not filter them either. Decay is computed in `resolveSignals()` at read time: a stale confirmation is **downgraded** to unconfirmed, never removed — it must still render at reduced weight (§2.3d), because a member who fades is different from a member who vanishes. There is no `expires_at` column and no expiry job; see `engineering-spec.md` §4.0.
 
 **Public invite pages must be fast and unauthenticated.**
 `/p/[slug]` server-rendered, cached at the edge, with OG image generation (Vercel OG) so links preview beautifully in iMessage. This page is the entire acquisition engine — it deserves disproportionate polish and a sub-1s LCP target on 4G.
@@ -731,7 +731,7 @@ This product asks for access to friends' calendars and information about their m
 4. **Wishlist claims are hidden from the owner.** Standard secret-santa mechanic; prevents the awkwardness that kills gift features.
 5. **Deleting a group deletes its data**, and disconnecting a calendar purges stored busy blocks immediately, not on a schedule.
 
-**Compliance posture:** PIPEDA (Canada) and GDPR-shaped defaults — explicit consent, data export, deletion on request, documented retention windows. Third-party pen test before any paid acquisition spend. Google OAuth verification is required for the calendar scopes and takes several weeks; **start that process during Sprint 3, not after.**
+**Compliance posture:** PIPEDA (Canada) and GDPR-shaped defaults — explicit consent, data export, deletion on request, documented retention windows. Third-party pen test before any paid acquisition spend. Google OAuth verification is required for the calendar scopes and takes several weeks; **start that process in Week 1** (A11, §13 M0) so it runs in parallel rather than blocking Sprint 3.
 
 **Safety:** groups are private and invite-only. No discovery, no public search. Block and leave-group must be one tap and must remove the leaver from all future heatmaps immediately.
 
@@ -798,7 +798,7 @@ Sell contact data · run interruptive display ads · paywall RSVP or invite view
 
 **Beachhead:** one metro (Toronto/GTA is the natural home-field choice), one demographic (25–32, post-grad friend groups), one wedge (the group that used to see each other weekly and now sees each other twice a year).
 
-**Phase 1 — Concierge (Weeks 1–8).** Five groups the founder can talk to directly. Personally onboard each one. Weekly interviews. The goal is not growth, it is discovering exactly where the Signal breaks.
+**Phase 1 — Concierge (Weeks 8–16).** Recruit during weeks 8–12; the pilot itself runs from M4 (week 12) to the M5 verdict (week 16). Five groups the founder can talk to directly. Personally onboard each one. Weekly interviews. The goal is not growth, it is discovering exactly where the Signal breaks.
 
 **Phase 2 — Referral by artifact (Months 3–6).** Growth comes from invite links, not marketing. Every invite is branded, beautiful, and previews well in iMessage. Add a soft "made with Overlap" footer. Target: each active group produces 0.4 new groups per quarter.
 
@@ -854,8 +854,8 @@ Alternates worth checking, roughly in order of strength:
 | Risk | Severity | Mitigation |
 |---|---|---|
 | The ritual doesn't stick | **Critical** | M5 gate. Test with 5 groups before building anything else. If <35%, redesign |
-| Empty-room cold start | **Critical** | Group-seeded onboarding, 4-member liveness threshold, honest UI below it, useful as a solo invite tool meanwhile |
-| Google OAuth verification delays | High | Begin in Sprint 3. Ship with manual night entry as fallback so the timeline never blocks on it |
+| Empty-room cold start | **Critical** | Group-seeded onboarding, **3-member** liveness threshold (A10), honest UI below it, and a **shareable availability card** below the threshold — explicitly *not* a solo invite tool, which would pick a fight with Partiful on their strongest surface |
+| Google OAuth verification delays | High | Begin in Week 1 (A11/M0). Ship with manual night entry as fallback so the timeline never blocks on it |
 | Group chat gravity pulls users back | High | Don't compete on chat. Be the thing the chat can't do. Make invite links live *inside* the chat |
 | Notification fatigue | High | Hard cap of 4/week, enforced in code, not policy |
 | Privacy incident | **Critical** | FreeBusy-only scopes, aggregation by default, pen test before paid growth |

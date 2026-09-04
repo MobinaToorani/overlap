@@ -57,7 +57,7 @@ Sending application-to-person SMS to US and Canadian numbers requires registerin
 - [ ] Password manager for all of the above — you will have fifteen credentials by month two
 - [ ] Set a **spend alert on every service.** A runaway worker loop can cost real money overnight.
 
-**Realistic monthly cost through the pilot: $40–80.** Twilio is usage-based; at 5 groups × 7 people × 4 messages/month that is trivial, but it scales linearly with users, so watch it.
+**Realistic monthly cost through the pilot: $40–80.** Twilio is usage-based; at 5 groups × 7 people × up to 4 messages **per week** (INV-5's cap, not per month) that is roughly 600 SMS/month plus OTP — still only a few dollars, but the per-week unit is what scales correctly when you extrapolate to 100 groups, but it scales linearly with users, so watch it.
 
 ---
 

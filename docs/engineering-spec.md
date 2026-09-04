@@ -721,7 +721,7 @@ notification_dropped{ user_id, kind, reason }
 **Sprint 2 — Signal + Heatmap**
 - [ ] Signal submits in < 10s median on a real phone, no keyboard required
 - [ ] Three-week horizon renders; weeks 1–2 pre-filled from prior signal
-- [ ] All 10 overlap unit tests pass, plus the 4 signal-resolution tests RS-1..RS-4 (FIX-2)
+- [ ] All 10 overlap unit tests pass, plus the 5 signal-resolution tests RS-1..RS-5 (FIX-2)
 - [ ] `resolveSignals()` exists as a separate function and is unit-tested independently of `computeOverlap()`
 - [ ] Confirmed vs soft are visually distinguishable at a glance
 - [ ] Below 3 signalled members, group shows `belowThreshold` copy, not a broken grid

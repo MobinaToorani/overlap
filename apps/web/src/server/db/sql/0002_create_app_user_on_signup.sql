@@ -43,8 +43,16 @@ BEGIN
     RETURN NEW;
   END IF;
 
+  -- display_name must NEVER default to the phone number. It is rendered in
+  -- the group member list, so seeding it from NEW.phone published every
+  -- member's phone number to everyone else in their groups — a direct
+  -- breach of master doc §10's trust posture, and not something the user
+  -- ever agreed to share. Coherence audit X-12.
+  --
+  -- A neutral placeholder is the safe default until a ticket actually
+  -- collects a name (currently nothing in T1-T22 does — see X-12).
   INSERT INTO app_user (id, phone_e164, display_name)
-  VALUES (NEW.id, NEW.phone, COALESCE(NEW.phone, 'New member'))
+  VALUES (NEW.id, NEW.phone, 'New member')
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
