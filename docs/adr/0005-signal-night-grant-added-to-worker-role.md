@@ -1,7 +1,18 @@
 # ADR-0005: Added a GRANT on signal_night for overlap_worker, missing from engineering-spec.md §3's own list
 
-**Status:** accepted
+**Status:** ⛔ **superseded by ADR-0007 (coherence audit X-5)**
 **Date:** 2026-09-04
+
+> **Superseded, not reversed.** X-5 established that `calendar_sync` writes
+> `busy_block` only and never `signal_night` — that write path is structurally
+> impossible, since `signal_night.signal_id` is `NOT NULL` and a soft night
+> would need a parent signal, which the non-signalling members it describes do
+> not have. So `overlap_worker` needs no `signal_night` grant at all, and this
+> ADR's problem dissolved rather than being solved.
+>
+> The reasoning below is kept because the *guards* it discusses still stand:
+> both INV-1 triggers remain, and their real job was always to stop a future
+> contributor rather than the current worker.
 
 ## Context
 

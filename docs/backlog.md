@@ -39,7 +39,7 @@ One ticket in flight at a time — see `docs/agent-prompt.md`'s ground rules. A 
 
 Recorded so they are not silently re-adopted, and so "why isn't this built" has an answer:
 
-- **FIX-7 (fortnightly cadence stepdown) — deferred, not struck** *(was struck; revised by `audit-report.md` FIX-13 — see ADR-0007's amendment)*. The **stepdown** is still not built: not computable from the schema, and it could not fire during the pilot. **A8 is reopened as unresolved.** What changed is the collision with the freshness rule — that is now discharged rather than deferred with it, since §4.0's windows derive from `cadence_weeks` (RS-7). Reviving the stepdown is a switch to flip, not a redesign.
+- **FIX-7 (fortnightly cadence stepdown) — deferred, not struck** *(was struck; revised by `audits/audit-report.md` FIX-13 — see ADR-0007's amendment)*. The **stepdown** is still not built: not computable from the schema, and it could not fire during the pilot. **A8 is reopened as unresolved.** What changed is the collision with the freshness rule — that is now discharged rather than deferred with it, since §4.0's windows derive from `cadence_weeks` (RS-7). Reviving the stepdown is a switch to flip, not a redesign.
 - **FIX-5 (`overlap_precompute` + Redis cache) — deferred past M5.** Recomputation is trivially fast for five groups of seven; adding a cache-invalidation contract before there is load to justify one is premature.
 - **Apple / CalDAV calendar — out of v1.** Google-only, as §9.3 already permits. Risk accepted: an iPhone-heavy pilot group gets no sync, and falls back to manual night-tapping.
 - **Founder-triggered first Signal — folded into T16**, which owns the dispatcher it needs.

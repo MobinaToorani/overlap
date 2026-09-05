@@ -4,7 +4,7 @@
 **Date:** 2026-09-04
 **Decided by:** delegated to the implementing agent, on reasoning rather than preference.
 
-`coherence-audit.md` raised 32 findings, eight proposals, and five corrections with no owner. The mechanical ones (stale text) were applied directly. This records the ones that required a judgment call, each with the argument that decided it — so a future reader can disagree with the reasoning rather than guess at it.
+`../audits/coherence-audit.md` raised 32 findings, eight proposals, and five corrections with no owner. The mechanical ones (stale text) were applied directly. This records the ones that required a judgment call, each with the argument that decided it — so a future reader can disagree with the reasoning rather than guess at it.
 
 A theme worth stating up front: **several findings are best resolved by deleting a commitment rather than building it.** A correction that exists only in a schema column is not a mitigation; it is a note claiming to be one, and it costs more than nothing because it stops anyone looking at the problem again.
 
@@ -115,11 +115,11 @@ The decisions that touch shipped code — `lapsed`, the band floor, the `display
 
 ---
 
-## Amendment, 2026-09-04 — X-1 partially reversed by `audit-report.md` FIX-13
+## Amendment, 2026-09-04 — X-1 partially reversed by `../audits/audit-report.md` FIX-13
 
 **Status:** accepted, superseding the X-1 section above.
 
-`audit-report.md` — the design audit both specs cite, added to the repo after this ADR was written — carries a **FIX-13** written in response to the decay defect reported from T6. It specifies the resolution differently than X-1 above decided, on two points. FIX-13 wins on both, and the reasoning is worth keeping because the disagreement was substantive rather than clerical.
+`../audits/audit-report.md` — the design audit both specs cite, added to the repo after this ADR was written — carries a **FIX-13** written in response to the decay defect reported from T6. It specifies the resolution differently than X-1 above decided, on two points. FIX-13 wins on both, and the reasoning is worth keeping because the disagreement was substantive rather than clerical.
 
 ### 1. Freshness *is* cadence-derived. (Reversed.)
 

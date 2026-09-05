@@ -5,7 +5,7 @@
 **Audience:** the implementing agent (and future you)
 **Purpose:** remove every decision an agent would otherwise invent
 
-> **v1.1 changelog.** An audit of v1.0 found twelve defects. Three were blocking (no `auth.users` linkage, undefined signal-resolution precedence, nullable `ends_at`), and one would have silently disabled the retention mechanic (plan invites could starve the Sunday Signal out of the notification budget). All are fixed in place and tagged `FIX-n`. Full report in `audit-report.md`.
+> **v1.1 changelog.** An audit of v1.0 found twelve defects. Three were blocking (no `auth.users` linkage, undefined signal-resolution precedence, nullable `ends_at`), and one would have silently disabled the retention mechanic (plan invites could starve the Sunday Signal out of the notification budget). All are fixed in place and tagged `FIX-n`. Full report in `audits/audit-report.md`.
 
 The master doc explains *why*. This document is the *contract*. Where the two conflict, this one wins on implementation detail and the master doc wins on intent.
 
@@ -383,7 +383,7 @@ This is how progressive decay (master doc §2.3d) is actually implemented. There
 
 > **Corrected 2026-09-04 (v1.2).** This rule previously applied only to `horizon_week == 0`, which contradicted master doc §2.3d ("weeks two and three persist but are marked **unconfirmed** … skip repeatedly and you fade out of the picture entirely"). The narrower rule meant an abandoned signal kept asserting hard confirmations for its weeks 1 and 2 for a full fortnight: someone who tapped a night on the 6th and never returned still showed as *confirmed free* on the 20th. A two-week-old guess presented as a friend saying yes is precisely the over-reporting audit finding **A2** exists to prevent, and it meant skipping had no consequence, defeating §2.3d's decay design. Test **RS-5** covers it.
 
-> **Extended 2026-09-04 (v1.3), per `audit-report.md` FIX-13.** v1.2 had two stages and a flat 7-day window. Both were wrong in the same direction — not enough decay:
+> **Extended 2026-09-04 (v1.3), per `audits/audit-report.md` FIX-13.** v1.2 had two stages and a flat 7-day window. Both were wrong in the same direction — not enough decay:
 >
 > - **Two stages cannot produce "fade out entirely".** `lapsed` is still *shown*. Without a third stage a member who signalled once in September stays on the heatmap at reduced weight until the date itself passes. That is a fade that never finishes, and §2.3d promises one that does.
 > - **A flat 7 days penalises a fortnightly group for complying.** FIX-7 steps a quiet group to `cadence_weeks = 2`; a flat window would then lapse every confirmation days before that group's next ask even goes out. Coherence audit **X-1** found this coupling; deriving the window from cadence is what discharges it.
@@ -778,7 +778,7 @@ notification_dropped{ user_id, kind, reason }
 > code-complete while their verified-live boxes wait on Twilio, and work
 > correctly proceeds past them. The rule that keeps this honest: **no
 > verified-live box may still be open when M4 (pilot start) is declared.**
-> Open ones are tracked in `implementation-audit.md`'s Open Items table.
+> Open ones are tracked in `audits/implementation-audit.md`'s Open Items table.
 
 **Sprint 1 — Foundations**
 - [ ] `app_user.id` references `auth.users(id)`; a verified OTP produces exactly one app_user row (FIX-1)

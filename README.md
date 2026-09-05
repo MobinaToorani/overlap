@@ -6,7 +6,7 @@ A rolling three-week heatmap of when a friend group is collectively free, fed by
 
 [![CI](https://github.com/MobinaToorani/overlap/actions/workflows/ci.yml/badge.svg)](https://github.com/MobinaToorani/overlap/actions/workflows/ci.yml)
 
-> **Status: pre-launch, private repo.** v1 scope is T1-T22 in [`docs/backlog.md`](docs/backlog.md) — built so far: the repo scaffold, the full DB schema, the overlap engine, phone OTP auth, groups, the Signal, and the heatmap (T1-T7). Schema, invariant triggers and the Signal→heatmap chain are verified against a live Supabase database; phone login still waits on Twilio. No calendar sync or worker yet. See [Where things stand](#where-things-stand).
+> **Status: pre-launch, private repo.** v1 scope is T1-T25 in [`docs/backlog.md`](docs/backlog.md) — built so far: the repo scaffold, the full DB schema, the overlap engine, phone OTP auth, groups, the Signal, and the heatmap (T1-T7). Schema, invariant triggers and the Signal→heatmap chain are verified against a live Supabase database; phone login still waits on Twilio. No calendar sync or worker yet. See [Where things stand](#where-things-stand).
 
 ---
 
@@ -27,7 +27,7 @@ A rolling three-week heatmap of when a friend group is collectively free, fed by
 
 Adult friend groups don't stop wanting to see each other — they stop being able to schedule it. Someone floats an idea in the group chat, six people reply with partial constraints across three days, nobody holds the full picture in their head, and the thread dies. The bottleneck isn't desire or budget; it's the absence of a shared, current picture of who's actually free, and the group chat is the worst possible interface for computing that.
 
-Overlap's retention bet — and the reason most apps in this category (Down to Lunch, Free, Kickback) died — is a single synchronized ritual rather than a feed or a chat surface. The full reasoning, including an adversarial audit of the original design (eleven findings, three of them product-killing), lives in [`docs/overlap-master-doc.md`](docs/overlap-master-doc.md).
+Overlap's retention bet — and the reason most apps in this category (Down to Lunch, Free, Kickback) died — is a single synchronized ritual rather than a feed or a chat surface. The full reasoning, including an adversarial audit of the original design (eleven findings, three of them product-killing — `docs/audits/` holds three more review passes since), lives in [`docs/overlap-master-doc.md`](docs/overlap-master-doc.md).
 
 ## How it works
 
@@ -41,7 +41,7 @@ Calendar sync is a **draft input only** — it can remove a night (hard conflict
 
 The overlap engine is two pure functions, zero I/O, fully unit-tested:
 
-- **`resolveSignals()`** ([`apps/web/src/server/services/signals.ts`](apps/web/src/server/services/signals.ts)) resolves two ambiguities a naive implementation gets wrong: a group-scoped signal always shadows a global one for the same week (never merged), and where two signals' 21-day horizons overlap, the most recently submitted one wins per date. It also applies freshness decay: once a signal is more than 7 days old none of its nights still count as a hard yes, whichever of its three weeks they sat in — so someone who stops signalling fades from the picture rather than asserting stale confirmations. Runs in **O(n)** in the number of nights — every night is inspected exactly once, which is also the theoretical floor.
+- **`resolveSignals()`** ([`apps/web/src/server/services/signals.ts`](apps/web/src/server/services/signals.ts)) resolves two ambiguities a naive implementation gets wrong: a group-scoped signal always shadows a global one for the same week (never merged), and where two signals' 21-day horizons overlap, the most recently submitted one wins per date. It also applies freshness decay in three stages, whichever of its three weeks a night sat in: a confirmation stands for one ask cycle, then becomes `lapsed` (still shown, no longer counted), then drops out entirely — so someone who stops signalling genuinely fades from the picture instead of asserting stale confirmations forever. Cycle length derives from the group's own cadence, so a group asked fortnightly isn't marked stale on a weekly clock. Runs in **O(n)** in the number of nights — every night is inspected exactly once, which is also the theoretical floor.
 - **`computeOverlap()`** ([`apps/web/src/server/services/overlap.ts`](apps/web/src/server/services/overlap.ts)) turns resolved per-member availability into the 21-night heatmap: confirmed counts, vibe bands, the best night (earliest date wins ties), and a plain-language headline — built from confirmed members only. Also **O(n)** in the number of resolved member-nights, via a single pass building per-date accumulators rather than re-scanning members per date.
 
 Both treat every date as an opaque `YYYY-MM-DD` string and do all arithmetic in UTC ([`dateUtils.ts`](apps/web/src/lib/dateUtils.ts)) — never via `new Date(str)` plus local `getDate()`/`getDay()`, which would silently misbucket nights depending on the *server's* timezone or a DST transition. See [ADR-0002](docs/adr/0002-overlap-engine-is-two-pure-functions.md) for the full reasoning.
@@ -88,18 +88,24 @@ overlap/
 ├── packages/
 │   └── shared/               Types + zod schemas shared web ↔ worker contract
 └── docs/
+    ├── README.md                index + precedence order — start here
     ├── overlap-master-doc.md    Product intent — wins on intent
     ├── engineering-spec.md      Implementation contract — wins on implementation
     ├── agent-prompt.md          Standing instructions for whoever builds a ticket
     ├── founder-checklist.md     Tasks only the founder can do (legal, A2P 10DLC, OAuth verification)
     ├── marketing-plan.md        GTM
-    ├── README.md                index + precedence order — start here
     ├── backlog.md               T1-T25 status board
-    ├── traceability.md          every rule → its ticket → its test
-    ├── audit-report.md          the design audit (A1-A11, FIX-1-FIX-12)
-    ├── implementation-audit.md  defects found in the code, and how
+    ├── traceability.md          every rule → its enforcement → its ticket → its test
+    ├── audits/                  four adversarial reviews, on four different axes
+    │   ├── README.md              which is which — they are NOT interchangeable
+    │   ├── audit-report.md        the build documentation (FIX-1-FIX-13)
+    │   ├── implementation-audit.md  the code (IMP-1-IMP-15)
+    │   └── coherence-audit.md     contradictions between documents (X-1-X-32)
     └── adr/                     Decisions made while building, not written into the spec
 ```
+
+The design audit (A1-A11) isn't a file — it lives in `overlap-master-doc.md`
+§0, the document it reshaped.
 
 ## Getting started
 
@@ -137,6 +143,10 @@ Full board: [`docs/backlog.md`](docs/backlog.md), which is the designated status
 ## Documentation map
 
 **Start at [`docs/README.md`](docs/README.md)**, which indexes every document and states which one wins when two disagree. Otherwise, in order, most-durable first: [`overlap-master-doc.md`](docs/overlap-master-doc.md) (intent) → [`engineering-spec.md`](docs/engineering-spec.md) (contract) → [`docs/adr/`](docs/adr/) (decisions made while building) → [`docs/backlog.md`](docs/backlog.md) (current state) → [`agent-prompt.md`](docs/agent-prompt.md) (standing build instructions). Business-side docs: [`founder-checklist.md`](docs/founder-checklist.md), [`marketing-plan.md`](docs/marketing-plan.md).
+
+The four adversarial reviews are in [`docs/audits/`](docs/audits/) — start with its [README](docs/audits/README.md), because they audit four different things and are not interchangeable.
+
+If you're an AI agent working in this repo, [`CLAUDE.md`](CLAUDE.md) at the root is the short version of all of the above and loads automatically.
 
 ## Contributing
 

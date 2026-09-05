@@ -1,6 +1,21 @@
 # Docs
 
-Eleven documents, three of which claim authority over overlapping things. This says which one wins, and what each is for.
+Three of these claim authority over overlapping things. This says which one wins, and what each is for.
+
+```
+docs/
+├── overlap-master-doc.md    the product, and why      ← read first
+├── engineering-spec.md      the contract
+├── marketing-plan.md        how the first 100 groups happen
+├── founder-checklist.md     what only Mobina can do
+│
+├── agent-prompt.md          standing instructions, T1–T25
+├── backlog.md               live status board
+├── traceability.md          every rule → its test → whether that's true today
+│
+├── audits/                  four adversarial reviews (see audits/README.md)
+└── adr/                     decisions taken while building
+```
 
 ## Precedence
 
@@ -32,23 +47,13 @@ The specs each carry a version and a changelog. If you change a rule in one, cha
 | `adr/` | Decisions taken while building, with the reasoning, so they can be disagreed with rather than guessed at. |
 
 ### The audits
-Three axes, deliberately separate. Each found things the others could not.
 
-| File | Audits | Findings |
-|---|---|---|
-| `overlap-master-doc.md` §0 | **the idea** — adversarial review of the design before any code | A1–A11 |
-| `audit-report.md` | **the documents** — traced as if executing them literally | FIX-1–FIX-13 |
-| `implementation-audit.md` | **the build** — defects in the code | IMP-1–15 |
-| `coherence-audit.md` | **the seams** — contradictions *between* documents | X-1–X-32 |
+Four adversarial reviews on four different axes — the idea (A-series), the
+documentation (FIX), the code (IMP), and the seams between documents (X).
+Each found defects the others structurally could not.
 
-The pattern each one found is worth carrying into the next:
-
-> **Design:** the failure modes were all over-promising — asserting more about people than they had actually said.
-> **Documents:** the worst defects were *omissions*, not errors. Nothing said what "the signals for a group" meant, so an agent would have guessed, inside the one piece of real logic in the product.
-> **Implementation:** every defect that mattered was found by running the thing, not reading it.
-> **Coherence:** every correction that got lost was lost in the seam between two documents that each assumed the other was carrying it.
-
-`audit-report.md` also carries **FIX-13**, added after implementation began and reported from a ticket rather than from a reading. It overrode a decision already taken in `adr/0007`. Worth knowing that an audit document is not necessarily finished at the point code starts.
+**See `audits/README.md`** for what each one is, what each axis taught, and
+which is which. Their current status is in `traceability.md`, not there.
 
 ## Maintenance rules
 

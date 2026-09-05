@@ -33,7 +33,7 @@ The eight rules that silently break the product if violated. Every one needs a t
 
 ## Design audit findings (A-series)
 
-From the adversarial review of the product design, recorded in `overlap-master-doc.md` §0. *(`audit-report.md` is a different review — it audits the build documentation and is the FIX-series source, not this one.)*
+From the adversarial review of the product design, recorded in `overlap-master-doc.md` §0. *(`audits/audit-report.md` is a different review — it audits the build documentation and is the FIX-series source, not this one.)*
 
 | Finding | Correction | Ticket | Test | Status |
 |---|---|---|---|---|
@@ -67,13 +67,13 @@ From the adversarial review of the product design, recorded in `overlap-master-d
 | FIX-10 | `ends_at` NOT NULL | T11, T19 | `migrationSql` DDL | ✅ schema |
 | FIX-11 | PIPEDA export/delete | T22 | — | ⬜ — **manual deletion runbook required before M4**, not M6 (X-18) |
 | FIX-12 | join code alphabet | T4 | `joinCode > 6 tests` · `liveDb > create returns a 12-char join code` | ✅ — **not yet applied to `public_slug`** (X-9), which needs it more |
-| **FIX-13** | decay in three cadence-derived stages | T5, T6 | `RS-5` · `RS-6` · `RS-7` · `RS-8` | ✅ — reported from T6, specified in `audit-report.md`, and it **overrode ADR-0007/X-1**; see that ADR's amendment |
+| **FIX-13** | decay in three cadence-derived stages | T5, T6 | `RS-5` · `RS-6` · `RS-7` · `RS-8` | ✅ — reported from T6, specified in `audits/audit-report.md`, and it **overrode ADR-0007/X-1**; see that ADR's amendment |
 
 ---
 
 ## Implementation defects (IMP-series)
 
-Full detail in `implementation-audit.md`. All fixed unless noted.
+Full detail in `audits/implementation-audit.md`. All fixed unless noted.
 
 | # | Defect | Test that now covers it |
 |---|---|---|
@@ -97,7 +97,7 @@ Full detail in `implementation-audit.md`. All fixed unless noted.
 
 ## Coherence findings (X-series) — open items only
 
-Resolved-and-applied findings are omitted; see `coherence-audit.md` and ADR-0007.
+Resolved-and-applied findings are omitted; see `audits/coherence-audit.md` and ADR-0007.
 
 | # | Finding | Decision | Ticket | Status |
 |---|---|---|---|---|
@@ -124,7 +124,7 @@ Resolved-and-applied findings are omitted; see `coherence-audit.md` and ADR-0007
 
 Stated rather than hidden, per the repo's own standard:
 
-- ~~**`audit-report.md` is missing.**~~ **Closed 2026-09-04** — added to the repo. Reading it immediately produced a correction: it carries a **FIX-13** that had no row here, and whose specified resolution contradicted ADR-0007's X-1 decision on two points. Both are now reconciled (see the FIX-13 row and ADR-0007's amendment). *This is the gap section doing its job: the entry existed for two days, and closing it changed shipped code.*
-- **The A-series rows are still traced from citations, not from `audit-report.md`.** That document audits the *build documentation* and is the source for FIX-1–FIX-13; the A1–A11 design findings live in `overlap-master-doc.md` §0. The A-series rows below have not been re-verified against a dedicated source because there isn't one — §0 is the source.
+- ~~**`audits/audit-report.md` is missing.**~~ **Closed 2026-09-04** — added to the repo. Reading it immediately produced a correction: it carries a **FIX-13** that had no row here, and whose specified resolution contradicted ADR-0007's X-1 decision on two points. Both are now reconciled (see the FIX-13 row and ADR-0007's amendment). *This is the gap section doing its job: the entry existed for two days, and closing it changed shipped code.*
+- **The A-series rows are still traced from citations, not from `audits/audit-report.md`.** That document audits the *build documentation* and is the source for FIX-1–FIX-13; the A1–A11 design findings live in `overlap-master-doc.md` §0. The A-series rows below have not been re-verified against a dedicated source because there isn't one — §0 is the source.
 - **No automated check enforces this file.** X-17's proposal — a test asserting every public procedure has a limiter — is the model for what would actually keep a matrix honest. Today the only mechanism is the maintenance rule at the top, which is a habit, not a guarantee.
 - **Rows without a Test are not claims of safety.** They are the backlog of things believed but unproven, which is the entire point of keeping them visible.

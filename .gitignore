@@ -43,3 +43,7 @@ pnpm-debug.log*
 
 # Zone.Identifier sidecars from Windows/browser downloads
 *:Zone.Identifier
+
+# Agent/tool scratch output
+.playwright-mcp/
+*.tmp.html
