@@ -29,6 +29,12 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # The maintenance rules docs/README.md admits nothing enforces:
+      # stale cross-references, broken doc links, cited-but-nonexistent
+      # tests, and raw UTF-8 in HTML. Cheap, and it runs before the slow jobs.
+      - name: Verify docs
+        run: pnpm verify:docs
+
       - name: Typecheck
         run: pnpm typecheck
 

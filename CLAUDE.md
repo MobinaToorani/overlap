@@ -43,10 +43,13 @@ every group's member list — that class of bug is why this rule is here.
 ## Before you say a ticket is done
 
 ```bash
-pnpm lint && pnpm typecheck && pnpm test && pnpm build
+pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm verify:docs
 ```
 
-All four, and they must pass. Then, **in the same commit**:
+All five, and they must pass. `verify:docs` catches the stale-cross-reference
+class of decay this repo keeps auditing itself for — broken doc links, a spec
+version that moved, a test cited in the matrix that doesn't exist. Then,
+**in the same commit**:
 
 1. Update the ticket's Status in `docs/backlog.md`.
 2. Update its row in `docs/traceability.md` if it touched an invariant, an

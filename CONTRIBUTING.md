@@ -21,9 +21,12 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm verify:docs
 ```
 
-All four must pass — this is exactly what CI (`.github/workflows/ci.yml`) runs on every push and PR.
+All five must pass — this is exactly what CI (`.github/workflows/ci.yml`) runs on every push and PR.
+
+`verify:docs` checks the documentation the way the other four check the code: broken links, cross-references to a spec version that has moved, tests cited in `docs/traceability.md` that exist in no test file, tickets cited that aren't on the backlog board, and raw UTF-8 in `.html`. It cannot tell you whether a claim is *true* — only whether it still points at something real.
 
 ## Code style
 

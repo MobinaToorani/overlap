@@ -12,6 +12,7 @@
     "dev": "pnpm --filter @overlap/web dev",
     "build": "pnpm --filter @overlap/web build",
     "lint": "pnpm -r --if-present lint",
+    "verify:docs": "node scripts/verify-docs.mjs",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
     "test:coverage": "pnpm -r --if-present test:coverage",

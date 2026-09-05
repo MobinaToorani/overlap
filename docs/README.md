@@ -63,4 +63,6 @@ Three, and they are the whole system:
 2. **The PR that touches a correction updates its row in `traceability.md`.**
 3. **A rule changed in one spec is changed in the other in the same commit.**
 
-None of these are enforced by CI. They are habits, and the audits above are what happens when a habit slips.
+**`pnpm verify:docs` now enforces the mechanically decidable part**, and CI runs it on every push: broken doc links, cross-references to a spec version that moved, tests cited in the matrix that don't exist in the suite, tickets cited that aren't on the board, and raw UTF-8 in HTML.
+
+It cannot check whether a row is *honest* — whether the test named actually proves the thing claimed, or whether a status is current. That still needs a reader. The audits above are what happens when the unenforceable half slips.
