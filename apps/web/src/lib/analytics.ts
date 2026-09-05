@@ -24,6 +24,12 @@ export type AnalyticsEvent = {
     seconds_to_complete: number;
     nights_confirmed: number;
     horizon_weeks_touched: number;
+    /** How many of the confirmed nights were pre-filled and left standing
+     * rather than tapped (A1 / X-19). Beyond §11's original three fields:
+     * the three-week horizon is only affordable if pre-fill is accurate,
+     * and without this the effect is invisible — a correct pre-fill and a
+     * user who taps everything by hand produce identical numbers. */
+    nights_prefilled: number;
   };
 };
 

@@ -1,6 +1,6 @@
 # Overlap — Engineering Specification
 
-**Version:** 1.3 (post-audit; freshness rule corrected and extended to three cadence-derived stages, 2026-09-04)
+**Version:** 1.4 (signal.getDraft specified; prior-signal pre-fill moved into T6 per X-19, 2026-09-04)
 **Companion to:** `overlap-master-doc.md` v0.4
 **Audience:** the implementing agent (and future you)
 **Purpose:** remove every decision an agent would otherwise invent
@@ -495,7 +495,30 @@ signal.getCurrent        ()                                   → Signal | null
 signal.submit            ({ vibe, nights[], note? })          → Signal
    // nights: { date, state: 'confirmed_free' | 'blocked' }[]
    // server sets written_by='user', confirmed_at=now()
-signal.getDraft          ()                                   → prefilled nights from busy_block + prior week
+signal.getDraft          ()                                   → { weekStartDate, nights[], from }
+   // nights: { date, source: 'carried' | 'pattern' }[]
+   // T6 ships the prior-signal source; T10 adds busy_block as a second one.
+   // 'carried' = the prior signal covered this exact date and it was
+   //             confirmed. Its horizon overlaps this one by up to 14 days,
+   //             so this is the person's own answer, not an inference.
+   // 'pattern' = the date is new (typically week 3). Proposed from a
+   //             weekday confirmed in more than half the weeks the prior
+   //             signal spanned — one stray Tuesday is not a pattern.
+   // Bounded to a prior signal at most 14 days old: the same window at
+   // which §4.0's decay drops a night entirely. Once the engine stops
+   // believing a signal, the draft must stop proposing it.
+   // Persists NOTHING. A draft night becomes confirmed_free only when a
+   // human submits — see the INV-1 note below.
+
+// ---------------------------------------------------------------------
+// INV-1 and pre-fill. A pre-filled night is a PROPOSAL, not an assertion.
+// It is rendered visibly distinct from a night tapped in this session —
+// outlined rather than filled, with a line of copy saying where it came
+// from — and it is submitted only if the person leaves it standing and
+// presses submit. That press is the human act A2 requires; a proposal the
+// user never saw and silently agreed to would not be, which is why the
+// distinct rendering is part of the contract and not a style choice.
+// ---------------------------------------------------------------------
 
 plan.createFromNight     ({ groupId, date, title, startTime?, ... }) → Plan
    // FIX-6: a heatmap "night" is a DATE; plan.starts_at is a TIMESTAMPTZ.
@@ -722,7 +745,14 @@ Minimum set to answer the M5 gate. PostHog.
 signal_dispatched   { user_id, group_id, channel, week_start }
 signal_delivered    { user_id, channel }
 signal_opened       { user_id }
-signal_completed    { user_id, seconds_to_complete, nights_confirmed, horizon_weeks_touched }
+signal_completed    { user_id, seconds_to_complete, nights_confirmed, horizon_weeks_touched,
+                      nights_prefilled }
+   // nights_prefilled: how many confirmed nights were pre-filled and left
+   // standing rather than tapped. Added with X-19. Without it pre-fill is
+   // invisible in the data — an accurate draft and a user tapping all
+   // twenty-one nights by hand produce identical numbers on every other
+   // field, and A1's "weeks two and three cost one tap" claim is exactly
+   // what the pilot needs to check.
 heatmap_viewed      { group_id, confirmed_count, soft_count }
 plan_created        { group_id, from_heatmap: bool, days_ahead, is_home_hang }
 invite_viewed       { slug, authed: bool }

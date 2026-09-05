@@ -65,6 +65,38 @@ export interface SignalWithNights {
   nights: SignalNight[];
 }
 
+/**
+ * Where a pre-filled night in the Signal draft came from (A1 / X-19).
+ *
+ * `carried` — the prior signal covered this exact date and the person
+ * confirmed it. The strongest source: it is their own answer about this
+ * night, not an inference from it.
+ *
+ * `pattern` — no prior signal reached this date, so it is proposed from
+ * the weekday they usually confirm.
+ *
+ * A draft night is never stored and never scores. It is a proposal the
+ * person can see, change, and only then agree to by submitting — which is
+ * the human act INV-1 and A2 require before anything counts as free.
+ */
+export const DRAFT_SOURCES = ['carried', 'pattern'] as const;
+export type DraftSource = (typeof DRAFT_SOURCES)[number];
+
+export interface DraftNight {
+  date: string; // ISO date (YYYY-MM-DD)
+  source: DraftSource;
+}
+
+/** What `signal.getDraft` hands the grid when no signal exists yet. */
+export interface SignalDraft {
+  weekStartDate: string;
+  nights: DraftNight[];
+  /** The signal this was derived from, so the UI can say where it came
+   * from rather than pre-selecting nights with no explanation. Null when
+   * there was no usable prior signal and the grid opens empty. */
+  from: { weekStartDate: string; submittedAt: string } | null;
+}
+
 export interface Member {
   userId: string;
   displayName: string;

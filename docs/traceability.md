@@ -10,7 +10,7 @@ Every rule this product commits to → where it is enforced → which ticket own
 
 Statuses: ✅ enforced and proven · 🟡 built, not fully proven · ⬜ not started · 🔴 no owner · ⛔ struck
 
-Last verified against the repo: **2026-09-04** (117 tests passing — 20 shared + 97 web, including 10 against live Postgres; test names below are real and were read out of the suite, not transcribed from a document).
+Last verified against the repo: **2026-09-04** (124 tests passing — 20 shared + 104 web, including 10 against live Postgres; test names below are real and were read out of the suite, not transcribed from a document).
 
 ---
 
@@ -37,7 +37,7 @@ From the adversarial review of the product design, recorded in `overlap-master-d
 
 | Finding | Correction | Ticket | Test | Status |
 |---|---|---|---|---|
-| A1 horizon < planning horizon | rolling three weeks | T6 | `signalGrid > buildWeeks` · `+ agrees with horizonWeekFor` | 🟡 built; the pre-fill that makes it affordable moved into T6 (X-19) but is **not yet implemented** |
+| A1 horizon < planning horizon | rolling three weeks **+ pre-fill** | T6 | `signalGrid > buildWeeks` · `+ agrees with horizonWeekFor` · `draft > 7 tests` | 🟡 both halves built; the ten-second median is unmeasured until a real phone can sign in |
 | **A2 free ≠ available** | calendar drafts, humans confirm | T2, T9, T10 | INV-1 row above · `lapsed` state tests | 🟡 guard proven live; T9/T10 not started |
 | A3 push unreliable | SMS is the floor | T17 | — | ⬜ — pilot is SMS-only by decision (ADR-0007, P8) |
 | A4 multiplying ritual | one global Signal | T5, T6 | `RS-1` · INV-8 row | ✅ — master doc §9.3's per-group key was reintroducing this (X-2), now corrected |
@@ -112,7 +112,7 @@ Resolved-and-applied findings are omitted; see `coherence-audit.md` and ADR-0007
 | X-15 | RLS deny-all blocks `overlap_worker`; `current_user` wrong | explicit policies; `session_user` | T9 | ⬜ before T9 |
 | X-16 | Three definitions of "current" | one constant set | — | 🟡 floor consolidated; windows still need stating |
 | X-17 | Rate limits sequenced after the routes they protect | dissolve T21 into T12/T13 | T12, T13, T21 | ⬜ |
-| X-19 | Sprint 2 DoD needs a Sprint 3 ticket | pre-fill into T6 | T6 | ✅ resequenced; **implementation still owed** |
+| X-19 | Sprint 2 DoD needs a Sprint 3 ticket | pre-fill into T6 | T6 | ✅ **built** — `signal.getDraft` + `buildDraftNights`, 7 tests. Proposals render distinct from taps so submitting stays an affirmative act |
 | X-28 | `message.archived_at` missing; §2.6 promises archiving | add column or soften the promise | T14 | ⬜ |
 | X-29 | No `--vibe-broke` token | add it, as warm as the others | T6 | ⬜ |
 | X-31 | Kill criteria have a 35–54% dead zone | decide before the pilot | founder — now an explicit checkbox in `founder-checklist.md` (pilot recruitment) | ⬜ still undecided; it has an owner and a home rather than only a finding |

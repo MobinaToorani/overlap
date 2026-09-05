@@ -1,18 +1,37 @@
-import { HORIZON_WEEKS, signalSubmitInputSchema } from '@overlap/shared';
+import { HORIZON_WEEKS, type SignalDraft, signalSubmitInputSchema } from '@overlap/shared';
 import { TRPCError } from '@trpc/server';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm';
 import { appUser, signal, signalNight } from '@/server/db/schema';
 import {
+  addDays,
   horizonWeekFor,
   localDateInTimeZone,
   weekStartFor,
 } from '@/lib/dateUtils';
+import { buildDraftNights } from '@/server/services/draft';
 import { createTRPCRouter, protectedProcedure } from '../trpc';
 
 /**
- * engineering-spec.md §5's signal.* surface. signal.getDraft (pre-fill from
- * busy_block and the prior week) is T10, deliberately not here — T6 builds
- * the grid, T10 pre-fills it.
+ * How far back a prior signal may be and still pre-fill the grid.
+ *
+ * Deliberately the same fourteen days at which §4.0's decay drops a night
+ * from resolution entirely (FIX-13). Once the engine has stopped believing
+ * a signal, the draft must stop proposing it — otherwise availability the
+ * product decided was too stale to read comes back on screen as a
+ * suggestion, and one confirming tap turns it into a fresh assertion.
+ */
+const PREFILL_LOOKBACK_DAYS = 14;
+
+/**
+ * engineering-spec.md §5's signal.* surface.
+ *
+ * signal.getDraft lives here as of X-19, which moved prior-signal pre-fill
+ * out of T10 and into T6. The reasoning: A1's three-week horizon is only
+ * affordable because weeks two and three cost about one tap, so a Sprint 2
+ * exit criterion ("median under ten seconds") cannot be measured against a
+ * version missing the thing that makes it possible. Prior-signal pre-fill
+ * has no calendar dependency, so nothing forced it to wait for T10; T10
+ * extends the same procedure with `busy_block` as a second source.
  *
  * INV-1 lives here more than anywhere else in the app: this is the only
  * code path in the product permitted to write `confirmed_free`, and it may
@@ -73,6 +92,73 @@ export const signalRouter = createTRPCRouter({
         // exactly one place keeps the shared type honest.
         submittedAt: row.submittedAt.toISOString(),
         nights,
+      },
+    };
+  }),
+
+  /**
+   * §5's `signal.getDraft` — what the grid should open pre-filled with when
+   * this week's signal doesn't exist yet.
+   *
+   * T6 implements the prior-signal source only. T10 extends this same
+   * procedure with `busy_block` as a second source, which is why it is its
+   * own endpoint rather than folded into getCurrent: X-5 settled that
+   * calendar pre-fill is a read path, and this is the read path it lands in.
+   *
+   * Persists nothing. See services/draft.ts for why that matters.
+   */
+  getDraft: protectedProcedure.query(async ({ ctx }): Promise<SignalDraft> => {
+    const db = ctx.db();
+    const { weekStartDate, timezone } = await currentWeekFor(db, ctx.user.id);
+    const today = localDateInTimeZone(new Date(), timezone);
+
+    // The most recent global signal from *before* this week. Bounded to the
+    // same window FIX-13 uses to drop a night from resolution entirely: if
+    // the engine has stopped reading those nights, proposing them again
+    // would put stale availability back on screen through the side door.
+    const oldestUsable = addDays(weekStartDate, -PREFILL_LOOKBACK_DAYS);
+
+    const [prior] = await db
+      .select({
+        id: signal.id,
+        weekStartDate: signal.weekStartDate,
+        submittedAt: signal.submittedAt,
+      })
+      .from(signal)
+      .where(
+        and(
+          eq(signal.userId, ctx.user.id),
+          isNull(signal.groupId),
+          lt(signal.weekStartDate, weekStartDate),
+          gte(signal.weekStartDate, oldestUsable),
+        ),
+      )
+      .orderBy(desc(signal.submittedAt))
+      .limit(1);
+
+    if (!prior) return { weekStartDate, nights: [], from: null };
+
+    const priorNights = await db
+      .select({ date: signalNight.date, state: signalNight.state })
+      .from(signalNight)
+      .where(eq(signalNight.signalId, prior.id));
+
+    const nights = buildDraftNights({
+      weekStartDate,
+      priorNights,
+      today,
+      horizonWeeks: HORIZON_WEEKS,
+    });
+
+    return {
+      weekStartDate,
+      nights,
+      // Reported even when nothing carried forward, so the UI can tell
+      // "you had no prior signal" apart from "your prior signal proposed
+      // nothing for these dates".
+      from: {
+        weekStartDate: prior.weekStartDate,
+        submittedAt: prior.submittedAt.toISOString(),
       },
     };
   }),
@@ -174,10 +260,10 @@ export const signalRouter = createTRPCRouter({
  * on, so getting this wrong would let one person hold two signals for what
  * they experience as one week.
  */
-async function currentWeekStartFor(
+async function currentWeekFor(
   db: ReturnType<import('@/server/trpc/context').Context['db']>,
   userId: string,
-): Promise<string> {
+): Promise<{ weekStartDate: string; timezone: string }> {
   const [user] = await db
     .select({ timezone: appUser.timezone })
     .from(appUser)
@@ -192,5 +278,16 @@ async function currentWeekStartFor(
     });
   }
 
-  return weekStartFor(localDateInTimeZone(new Date(), user.timezone));
+  return {
+    weekStartDate: weekStartFor(localDateInTimeZone(new Date(), user.timezone)),
+    timezone: user.timezone,
+  };
+}
+
+/** The week anchor alone, for the paths that don't also need the timezone. */
+async function currentWeekStartFor(
+  db: ReturnType<import('@/server/trpc/context').Context['db']>,
+  userId: string,
+): Promise<string> {
+  return (await currentWeekFor(db, userId)).weekStartDate;
 }

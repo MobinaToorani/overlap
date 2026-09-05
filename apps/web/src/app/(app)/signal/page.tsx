@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { VIBES, type Vibe } from '@overlap/shared';
+import { VIBES, type DraftSource, type Vibe } from '@overlap/shared';
 import { track } from '@/lib/analytics';
 import { copy } from '@/lib/copy';
 import { trpc } from '@/lib/trpc/client';
@@ -23,10 +23,20 @@ function SignalForm() {
   const current = trpc.signal.getCurrent.useQuery();
   const utils = trpc.useUtils();
 
+  // Pre-fill (A1 / X-19). Fetched alongside getCurrent rather than after it
+  // — tRPC batches the two into one request, so this costs no extra round
+  // trip on the screen with the tightest latency budget in the product.
+  const draft = trpc.signal.getDraft.useQuery();
+
   const [vibe, setVibe] = useState<Vibe | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [note, setNote] = useState('');
   const [noteOpen, setNoteOpen] = useState(false);
+  // Nights the *app* proposed and the person hasn't touched yet. Kept apart
+  // from `selected` so the grid can show what is being suggested on their
+  // behalf rather than presenting it as something they said. Tapping a night
+  // removes it from here: once they've touched it, it's their answer.
+  const [proposed, setProposed] = useState<Map<string, DraftSource>>(new Map());
 
   // The ten-second budget is the product (master doc §2.3b), so the clock
   // starts when the screen becomes usable, not when the mutation fires.
@@ -43,14 +53,40 @@ function SignalForm() {
     setSelected(
       new Set(existing.nights.filter((n) => n.state === 'confirmed_free').map((n) => n.date)),
     );
+    setProposed(new Map()); // a real submission outranks any proposal
   }, [existing]);
+
+  // Pre-fill only ever applies to a week with no signal yet. Once someone
+  // has submitted, what they submitted is the truth for that week and the
+  // app has no business proposing anything over the top of it.
+  const draftNights = draft.data?.nights;
+  useEffect(() => {
+    if (existing || !draftNights || draftNights.length === 0) return;
+    setProposed(new Map(draftNights.map((n) => [n.date, n.source])));
+  }, [existing, draftNights]);
+
+  /** Everything that will be submitted as confirmed_free: what they tapped,
+   * plus anything still proposed that they saw and chose not to remove.
+   * Declared above the early returns — it's a hook. */
+  const confirming = useMemo(() => {
+    const all = new Set(selected);
+    for (const date of proposed.keys()) all.add(date);
+    return all;
+  }, [selected, proposed]);
 
   const submit = trpc.signal.submit.useMutation({
     onSuccess: async () => {
       track('signal_completed', {
         seconds_to_complete: (Date.now() - openedAt.current) / 1000,
-        nights_confirmed: selected.size,
-        horizon_weeks_touched: countWeeksTouched(current.data?.weekStartDate, selected),
+        // What was actually submitted, not just what was tapped — otherwise
+        // pre-fill would show up in the data as people confirming fewer
+        // nights, which is the opposite of what it does.
+        nights_confirmed: confirming.size,
+        horizon_weeks_touched: countWeeksTouched(current.data?.weekStartDate, confirming),
+        // Whether pre-fill is earning its place: how many of those nights
+        // the person never had to tap. A1's correction claims weeks two and
+        // three cost about one tap; this is the number that shows it.
+        nights_prefilled: proposed.size,
       });
       await utils.signal.getCurrent.invalidate();
       // Submitting must reveal the heatmap — that reveal IS the reward
@@ -77,6 +113,19 @@ function SignalForm() {
   }
 
   function toggleNight(date: string) {
+    // A proposed night becomes a real one on first touch. Tapping it once
+    // says "yes, still true" (it moves into `selected`); tapping again
+    // clears it. Either way the app stops speaking for them about it.
+    const wasProposed = proposed.has(date);
+    if (wasProposed) {
+      setProposed((prev) => {
+        const next = new Map(prev);
+        next.delete(date);
+        return next;
+      });
+      setSelected((prev) => new Set(prev).add(date));
+      return;
+    }
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(date)) next.delete(date);
@@ -114,6 +163,16 @@ function SignalForm() {
         <h2 className="mb-2 text-sm font-medium text-text-muted">
           Which nights could you do something?
         </h2>
+        {/* Pre-filled nights are explained rather than silently present.
+            Selecting nights on someone's behalf without saying so is how a
+            product ends up asserting things nobody agreed to. */}
+        {proposed.size > 0 && (
+          <p className="mb-2 text-xs text-text-muted">
+            {proposed.size} {proposed.size === 1 ? 'night is' : 'nights are'} carried over from
+            your last signal. Tap to confirm or clear — they&apos;ll be sent as-is if you
+            leave them.
+          </p>
+        )}
         <div className="flex flex-col gap-3">
           {weeks.map((week, weekIndex) => (
             <div key={week[0]}>
@@ -124,20 +183,31 @@ function SignalForm() {
                 {week.map((date, dayIndex) => {
                   const isPast = date < todayIso;
                   const isOn = selected.has(date);
+                  const isProposed = proposed.has(date);
                   return (
                     <button
                       key={date}
                       type="button"
                       disabled={isPast}
-                      aria-pressed={isOn}
-                      aria-label={`${weekdayName(date)} the ${dayOfMonth(date)}`}
+                      aria-pressed={isOn || isProposed}
+                      aria-label={
+                        `${weekdayName(date)} the ${dayOfMonth(date)}` +
+                        (isProposed ? ' — carried over from your last signal, tap to confirm' : '')
+                      }
                       onClick={() => toggleNight(date)}
                       className={`flex flex-col items-center rounded-[var(--radius)] border py-2 text-xs ${
                         isPast
                           ? 'border-transparent text-text-muted opacity-30'
                           : isOn
                             ? 'border-accent bg-accent text-white'
-                            : 'border-border bg-surface text-text'
+                            : isProposed
+                              ? // Outlined, not filled: visibly a proposal
+                                // rather than something they said. A2's
+                                // principle applied to the input side —
+                                // the app may suggest, but it must not
+                                // look like the person already agreed.
+                                'border-accent border-dashed bg-surface text-accent'
+                              : 'border-border bg-surface text-text'
                       }`}
                     >
                       <span>{DAY_INITIALS[dayIndex]}</span>
@@ -186,11 +256,15 @@ function SignalForm() {
           vibe &&
           submit.mutate({
             vibe,
-            // Only tapped nights are sent, each as confirmed_free. An
-            // untapped night is an absence of information, not an assertion
-            // of a conflict — sending it as 'blocked' would claim something
-            // the user never said.
-            nights: [...selected].map((date) => ({ date, state: 'confirmed_free' as const })),
+            // Tapped nights plus any pre-filled night they left standing,
+            // each as confirmed_free. Leaving a proposal in place and
+            // pressing submit is an affirmative act — the person saw the
+            // grid, saw what was marked, and agreed to it — which is the
+            // human confirmation INV-1 and A2 require. An *untapped* night
+            // is still an absence of information, not an assertion of a
+            // conflict: sending it as 'blocked' would claim something the
+            // user never said.
+            nights: [...confirming].map((date) => ({ date, state: 'confirmed_free' as const })),
             ...(note.trim() ? { note: note.trim() } : {}),
           })
         }
