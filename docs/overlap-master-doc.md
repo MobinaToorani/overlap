@@ -2,7 +2,7 @@
 
 *Working codename. Alternate names in §14.*
 
-**Version:** 0.4 (decay rule restated as three cadence-derived stages, 2026-09-04)
+**Version:** 0.5 (a name is asked for at group create/join, and appears in the Me screen, 2026-09-09)
 **Owner:** Mobina Toorani (Strange Attractor)
 **Date:** September 2026
 **Status:** Pre-build. This document is the source of truth until v1 ships.
@@ -513,6 +513,7 @@ Overlap
 │   └── Things I'd want
 │
 └── Me
+    ├── Your name          ← first asked at group create/join, not at login
     ├── Calendar connections
     ├── Notification prefs
     └── Privacy controls

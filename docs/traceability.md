@@ -10,7 +10,7 @@ Every rule this product commits to → where it is enforced → which ticket own
 
 Statuses: ✅ enforced and proven · 🟡 built, not fully proven · ⬜ not started · 🔴 no owner · ⛔ struck
 
-Last verified against the repo: **2026-09-04** (124 tests passing — 20 shared + 104 web, including 10 against live Postgres; test names below are real and were read out of the suite, not transcribed from a document).
+Last verified against the repo: **2026-09-09** (141 tests passing — 27 shared + 114 web, including 11 against live Postgres; test names below are real and were read out of the suite, not transcribed from a document).
 
 ---
 
@@ -107,6 +107,7 @@ Resolved-and-applied findings are omitted; see `audits/coherence-audit.md` and A
 | X-7 | No `grp.timezone` | add column; convert at query boundary | T9/T11 | ⬜ migration needed |
 | X-8 | `rsvp` has no uniqueness; North Star inflatable | unique indexes + `guest_token` | T13 | ⬜ before T13 |
 | X-9 | `public_slug` has no generation rule | FIX-12 + ≥16 chars, no semantics | T12 | ⬜ before T12 |
+| X-12 | `display_name` is NOT NULL and no ticket ever collects one | neutral placeholder (never the phone), then a first-run name step in T4's create/join flow | T25 | ✅ **built** — `me.get`/`me.updateProfile`, the name field folded into `/g`'s create and join forms, and a standing one on `/me`. `liveDb > a fresh signup needs a name, saves one, and shows it in the member list` proves the plpgsql-to-TypeScript seam; `profile > the unnamed-user placeholder` pins the literal so it cannot drift silently |
 | X-13 | Budget counts its own drops; idempotency key collides | exclude drops; scope the key | T15 | ⬜ |
 | X-14 | INV-6 unachievable on web push | per-channel delivery reporting | T15, T18 | ⬜ |
 | X-15 | RLS deny-all blocks `overlap_worker`; `current_user` wrong | explicit policies; `session_user` | T9 | ⬜ before T9 |

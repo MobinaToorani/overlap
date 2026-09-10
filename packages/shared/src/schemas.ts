@@ -88,3 +88,48 @@ export const groupJoinByCodeInputSchema = z.object({
 export const groupIdInputSchema = z.object({
   groupId: z.string().uuid(),
 });
+
+// me.* — engineering-spec.md §5.
+//
+// A display name is rendered in every group's member list, so the bounds
+// are about what fits a roster row, not about storage. Trimmed before the
+// length check so " " can't pass as a name.
+export const displayNameSchema = z.string().trim().min(1).max(40);
+
+/**
+ * An IANA zone name, validated by asking the platform rather than by
+ * matching a pattern: `Intl` already carries the full tzdb, so a regex
+ * here would only be a worse copy of it that drifts as zones are renamed.
+ * Rejecting a bad zone at the edge matters because `signal.submit` and
+ * `group.overlap` both compute a member's current week in this timezone —
+ * an unparseable value would throw deep inside the engine instead.
+ */
+export const timezoneSchema = z.string().min(1).refine(
+  (tz) => {
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: tz });
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  { message: 'expected an IANA time zone, e.g. America/Toronto' },
+);
+
+/**
+ * §5's `me.updateProfile({ displayName, timezone })`. Both are optional
+ * individually but at least one must be present — a mutation that changes
+ * nothing is a bug in the caller, not a no-op worth silently accepting.
+ *
+ * The first-run name step (T25) sends both: the name the person typed,
+ * and the timezone their browser already knows, so nobody is silently
+ * left on the schema's `America/Toronto` default.
+ */
+export const meUpdateProfileInputSchema = z
+  .object({
+    displayName: displayNameSchema.optional(),
+    timezone: timezoneSchema.optional(),
+  })
+  .refine((v) => v.displayName !== undefined || v.timezone !== undefined, {
+    message: 'nothing to update',
+  });

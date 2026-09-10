@@ -116,3 +116,20 @@ export function horizonWeekFor(weekStartDate: string, nightDate: string): number
   const days = (parseIsoDate(nightDate) - parseIsoDate(weekStartDate)) / MS_PER_DAY;
   return Math.floor(days / 7);
 }
+
+/**
+ * The browser's own IANA zone, or null where the runtime won't say.
+ *
+ * Used by T25's first-run step to set `app_user.timezone` from something
+ * true rather than leaving everyone on the schema's `America/Toronto`
+ * default. Null (rather than a guess) when unavailable: the column already
+ * has a default, and inventing a zone for someone would put their Signal
+ * week — and eventually their Sunday dispatch — in the wrong place.
+ */
+export function browserTimeZone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}

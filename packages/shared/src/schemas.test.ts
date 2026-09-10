@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   groupCreateInputSchema,
   groupNameSchema,
+  displayNameSchema,
   isoDateSchema,
   joinCodeSchema,
+  meUpdateProfileInputSchema,
   phoneE164Schema,
   requestOtpInputSchema,
   signalSubmitInputSchema,
+  timezoneSchema,
   verifyOtpInputSchema,
   vibeSchema,
 } from './schemas';
@@ -142,5 +145,49 @@ describe('joinCodeSchema (FIX-12)', () => {
 
   it('rejects codes shorter than 10 characters', () => {
     expect(joinCodeSchema.safeParse('23456789A').success).toBe(false);
+  });
+});
+
+describe('displayNameSchema (T25 / X-12)', () => {
+  it('rejects empty or whitespace-only names', () => {
+    expect(displayNameSchema.safeParse('').success).toBe(false);
+    expect(displayNameSchema.safeParse('   ').success).toBe(false);
+  });
+
+  it('trims, so a padded name is stored the way it will be rendered', () => {
+    expect(displayNameSchema.parse('  Mobina  ')).toBe('Mobina');
+  });
+
+  it('rejects a name too long for a member-list row', () => {
+    expect(displayNameSchema.safeParse('x'.repeat(41)).success).toBe(false);
+    expect(displayNameSchema.safeParse('x'.repeat(40)).success).toBe(true);
+  });
+});
+
+describe('timezoneSchema', () => {
+  it('accepts real IANA zones', () => {
+    for (const tz of ['America/Toronto', 'America/Vancouver', 'Europe/London', 'UTC']) {
+      expect(timezoneSchema.safeParse(tz).success).toBe(true);
+    }
+  });
+
+  it('rejects anything Intl cannot resolve, which is what the engine will call it with', () => {
+    for (const bad of ['', 'Toronto', 'Mars/Olympus_Mons', 'America/Torontoo']) {
+      expect(timezoneSchema.safeParse(bad).success).toBe(false);
+    }
+  });
+});
+
+describe('meUpdateProfileInputSchema', () => {
+  it('accepts either field alone, or both', () => {
+    expect(meUpdateProfileInputSchema.safeParse({ displayName: 'Mobina' }).success).toBe(true);
+    expect(meUpdateProfileInputSchema.safeParse({ timezone: 'UTC' }).success).toBe(true);
+    expect(
+      meUpdateProfileInputSchema.safeParse({ displayName: 'Mobina', timezone: 'UTC' }).success,
+    ).toBe(true);
+  });
+
+  it('rejects a patch with nothing in it', () => {
+    expect(meUpdateProfileInputSchema.safeParse({}).success).toBe(false);
   });
 });

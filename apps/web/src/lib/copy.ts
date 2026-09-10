@@ -40,6 +40,13 @@ export const copy = {
   pokeReceived: '{sender} wants you in on {weekday}.',
   pokeMuted: '{name} is heads-down until {date}',
   nudge: '{weekday} is wide open for {n} of you. Want to start something?',
+  // T25 / X-12. Asked at group create/join, not at login: signing in
+  // alone gives nobody a reason to name themselves, and walking into a
+  // room with six friends obviously does. Framed as what your friends
+  // will see, because that is the actual reason it is being asked.
+  namePrompt: 'What should your friends see?',
+  nameLabel: 'Your name',
+  namePlaceholder: 'First name is plenty',
   rsvpPrompt: 'Are you in?',
   postSignup: 'Want to see when this group is free next?',
   attendanceCheck: 'Did you make it?',

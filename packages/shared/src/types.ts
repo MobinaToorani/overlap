@@ -154,6 +154,26 @@ export interface GroupOverlap {
   isLive: boolean; // signalledCount >= 3
 }
 
+/**
+ * The current user's own profile row (`me.get`). Deliberately carries no
+ * phone number: the member list renders `displayName`, and X-12's defect
+ * was a phone reaching a screen it had no reason to be on. `/me` gets the
+ * phone from the auth session it already holds, not from here.
+ */
+export interface UserProfile {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+  timezone: string;
+  /**
+   * True while `display_name` is still the placeholder FIX-1's signup
+   * trigger writes — i.e. nobody has ever named this person. Computed on
+   * the server so the placeholder string stays a server/SQL detail and
+   * the client never has to know what it is (T25 / X-12).
+   */
+  needsDisplayName: boolean;
+}
+
 export type GroupMemberRole = 'member' | 'admin';
 
 /**

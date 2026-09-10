@@ -1,7 +1,7 @@
 # Overlap — Engineering Specification
 
-**Version:** 1.4 (signal.getDraft specified; prior-signal pre-fill moved into T6 per X-19, 2026-09-04)
-**Companion to:** `overlap-master-doc.md` v0.4
+**Version:** 1.5 (me.get + me.updateProfile specified; group.listMine documented; display_name's placeholder contract stated, 2026-09-09)
+**Companion to:** `overlap-master-doc.md` v0.5
 **Audience:** the implementing agent (and future you)
 **Purpose:** remove every decision an agent would otherwise invent
 
@@ -129,6 +129,11 @@ CREATE TYPE member_role_t AS ENUM ('member','admin');
 CREATE TABLE app_user (
   id            uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   phone_e164    text UNIQUE NOT NULL,
+  -- X-12: NOT NULL, and the signup trigger has only a phone number to
+  -- work with. It writes a neutral placeholder, NEVER the phone -- seeding
+  -- display_name from phone_e164 published every member's number to their
+  -- whole group. T25's first-run step collects the real one; me.get
+  -- reports `needsDisplayName` by recognising the placeholder.
   display_name  text NOT NULL,
   avatar_url    text,
   timezone      text NOT NULL DEFAULT 'America/Toronto',
@@ -487,6 +492,12 @@ auth.verifyOtp           ({ phone, code })                    → { session }
 group.create             ({ name })                           → Group
 group.joinByCode         ({ joinCode })                       → Group
 group.get                ({ groupId })                        → Group & members
+group.listMine           ()                                   → GroupSummary[]
+   // Not in v1.4's list, added in v1.5 because it was already built and
+   // shipped for the master doc's §7.2 group switcher: nothing else in
+   // this surface answers "which groups am I in". Deliberately lighter
+   // than group.get -- a switcher needs a name and an id per group, not
+   // a member list per group.
 group.overlap            ({ groupId })                        → GroupOverlap
 group.shareCard          ({ groupId })                        → { imageUrl }   // cold start, A10
 group.leave              ({ groupId })                        → { ok }
@@ -538,7 +549,21 @@ poke.mute                ({ weeks: 2 })                       → { ok }
 calendar.connect         ({ provider })                       → { authUrl }
 calendar.disconnect      ({ provider })                       → { ok }         // purges busy_block immediately
 
-me.updateProfile         ({ displayName, timezone })          → User
+me.get                   ()                                   → UserProfile
+   // Added v1.5 (T25). Returns the caller's own app_user row plus
+   // `needsDisplayName: boolean`. A session carries an auth user, not an
+   // app_user row, so without this the client cannot know whether to ask
+   // for a name before it asks. The flag is computed server-side against
+   // the placeholder FIX-1's signup trigger writes, so that string stays
+   // a server/SQL detail the client can never render by accident.
+   // Carries NO phone number: X-12's defect was a phone reaching a screen
+   // that had no reason to show it.
+me.updateProfile         ({ displayName?, timezone? })         → UserProfile
+   // Both fields optional individually; at least one required. A partial
+   // patch must not blank the field it omits -- display_name is NOT NULL.
+   // displayName is trimmed, 1-40 chars. timezone is validated against
+   // Intl rather than a pattern, because §4.0 and signal.submit both
+   // compute a member's current week in it.
 me.notificationPrefs     ({ ... })                            → Prefs
 ```
 
@@ -783,6 +808,7 @@ notification_dropped{ user_id, kind, reason }
 **Sprint 1 — Foundations**
 - [ ] `app_user.id` references `auth.users(id)`; a verified OTP produces exactly one app_user row (FIX-1)
 - [ ] Two phones can OTP-login, one creates a group, the other joins by code
+- [ ] Both are asked their name in that same flow, and the member list shows it -- never a placeholder, never a phone number (X-12)
 - [ ] `auth.requestOtp` rate limit active before any real phone number is used (FIX-9)
 - [ ] Drizzle migrations run clean from empty DB
 - [ ] INV-1 trigger exists and test OV-6 passes

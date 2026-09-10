@@ -348,3 +348,75 @@ describe.skipIf(!DATABASE_URL)('the full Signal → overlap chain against live P
     }
   });
 });
+
+/**
+ * T25 / X-12 against a real database, because the thing being proven is a
+ * seam between two languages: FIX-1's plpgsql trigger writes the
+ * placeholder, and `needsDisplayName` (TypeScript) has to recognise it.
+ * pg-mem can't run the trigger at all, so nothing below this line is
+ * checkable anywhere else — and a unit test of either half alone would
+ * pass while the pair disagreed.
+ */
+describe.skipIf(!DATABASE_URL)('me router against live Postgres', () => {
+  it('a fresh signup needs a name, saves one, and shows it in the member list', async () => {
+    const { drizzle } = await import('drizzle-orm/postgres-js');
+    const schema = await import('@/server/db/schema');
+    const { appRouter } = await import('@/server/trpc/routers/_app');
+    const { createTestContext, fakeUser } = await import('../trpc/helpers');
+    const { PLACEHOLDER_DISPLAY_NAME } = await import('@/server/services/profile');
+
+    const db = drizzle(sql!, { schema });
+    const ROLLBACK = Symbol('rollback');
+
+    try {
+      await db.transaction(async (tx) => {
+        const [row] = await tx.execute<{ id: string }>(
+          sqlTag`INSERT INTO auth.users (id, instance_id, aud, role, phone, created_at, updated_at)
+                 VALUES (gen_random_uuid(), '00000000-0000-0000-0000-000000000000',
+                         'authenticated', 'authenticated', '+15195550151', now(), now())
+                 RETURNING id`,
+        );
+        const userId = (row as unknown as { id: string }).id;
+
+        const caller = appRouter.createCaller(
+          createTestContext({
+            user: fakeUser(userId),
+            db: (() => tx) as unknown as ReturnType<typeof createTestContext>['db'],
+          }),
+        );
+
+        // The seam: what the trigger wrote is what TypeScript calls unnamed.
+        const before = await caller.me.get();
+        expect(before.displayName).toBe(PLACEHOLDER_DISPLAY_NAME);
+        expect(before.needsDisplayName).toBe(true);
+        expect(before.timezone).toBe('America/Toronto'); // the schema default, not a choice
+
+        const after = await caller.me.updateProfile({
+          displayName: 'Mobina',
+          timezone: 'America/Vancouver',
+        });
+        expect(after.displayName).toBe('Mobina');
+        expect(after.needsDisplayName).toBe(false);
+        expect(after.timezone).toBe('America/Vancouver');
+
+        // A partial patch must not blank the column it omits — display_name
+        // is NOT NULL, so getting this wrong is a 500, not a silent bug.
+        const partial = await caller.me.updateProfile({ timezone: 'America/Toronto' });
+        expect(partial.displayName).toBe('Mobina');
+        expect(partial.timezone).toBe('America/Toronto');
+
+        // X-12's actual consequence, end to end: the roster shows the name
+        // the person chose, and never their phone number.
+        const group = await caller.group.create({ name: 'Name Test Crew' });
+        const fetched = await caller.group.get({ groupId: group.id });
+        const me = fetched.members.find((m) => m.userId === userId);
+        expect(me?.displayName).toBe('Mobina');
+        expect(fetched.members.map((m) => m.displayName)).not.toContain('+15195550151');
+
+        throw ROLLBACK;
+      });
+    } catch (err) {
+      if (err !== ROLLBACK) throw err;
+    }
+  });
+});
