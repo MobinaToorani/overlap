@@ -33,7 +33,25 @@ One ticket in flight at a time — see `docs/agent-prompt.md`'s ground rules. A 
 | T24 | One-tap re-confirm for a `lapsed` night (P2) | — | ⬜ Not started. The `lapsed` state ships in the engine and heatmap now; this is the mutation that makes it useful — the highest-intent surface in the product, since the member already said yes to that exact night |
 | T25 | First-run name capture, folded into T4's create/join flow (X-12) | 1 | 🟡 `me.get` + `me.updateProfile` (§5's spec'd shape, finally built) and the name field folded into `/g`'s create **and** join forms — one screen, not two, since a group is the first place a name is needed. A standing name form on `/me` covers anyone who joined before this shipped, which a first-run step alone would have stranded as "New member" forever. The browser's IANA timezone rides along on the same submit: no extra tap, and it replaces the schema's `America/Toronto` default with something true before any Signal week is computed. An unnamed user is recognised by the placeholder literal rather than a `display_name_set_at` column — a deliberate trade, documented in `services/profile.ts`, with a test pinning the literal to FIX-1's trigger so the two cannot drift. **Verified against live Supabase** (`liveDb > a fresh signup needs a name...`): the trigger's placeholder is what TypeScript calls unnamed, a partial patch doesn't blank `display_name`, and the roster shows the chosen name and never the phone. Still unverified: the flow through a real session (needs Twilio) and the real-phone check |
 
-**Stop after T25.** That's v1 — see `agent-prompt.md`.
+**Stop after T25.** That's v1 — see `agent-prompt.md`. T26 below is build tooling, not product scope; it does not extend v1.
+
+## Proposed — closing the spec-to-code gap (not scheduled)
+
+Raised 2026-09-11. Recorded rather than started, because it is a third thread alongside T25's outstanding real-phone pass and the T3 phone-input defect.
+
+**The observation.** This project is already spec-driven — a versioned contract, an intent doc with explicit precedence, a traceability matrix, four audits, and `verify:docs` in CI. But **all seven `verify:docs` checks are doc-to-doc.** Nothing checks that the spec describes the software.
+
+The evidence is recent and concrete: `group.listMine` was built during T4 and never added to `engineering-spec.md` §5. `me.get` would have been the second. Both were undocumented API surface until a human read the two files side by side during T25 and noticed. That is the "correction lost in a seam" failure this repo is built to prevent, one layer below where the matrix looks. `traceability.md`'s own gap section predicted it: *"No automated check enforces this file... the only mechanism is the maintenance rule at the top, which is a habit, not a guarantee."*
+
+| Ticket | What | Sprint | Status |
+|---|---|---|---|
+| T26 | Spec-to-code checks in `verify:docs`: §5 ↔ tRPC routers, §9 ↔ `copy.ts` | — | ⬜ Proposed. Two checks, roughly 55 lines total. **§5 ↔ routers:** assert every implemented procedure appears in §5's list. One direction only — 13 procedures are spec'd and legitimately unbuilt (plan.\*, poke.\*, calendar.\*, `group.shareCard`, `group.leave`, `me.notificationPrefs`), so the other direction must stay quiet or the check cries wolf. **§9 ↔ `copy.ts`:** assert every string §9 specifies exists in `copy.ts` verbatim. Today `copy.test.ts` tests `ordinal()` and `fillTemplate()`, not the strings. This one has teeth beyond tidiness: `founder-checklist.md` requires the A2P submission to carry sample messages *"matching `copy.signalPushSms` exactly"*, so copy drift after filing means carriers filter the Sunday Signal — silently, which is the failure mode that checklist exists to warn about |
+
+**Also proposed, lower priority, no ticket yet:**
+
+- **Per-ticket acceptance criteria, written from the spec before the work starts.** The process change that most deserves the name "spec-driven". §12 carries per-*sprint* DoD, but a ticket is a one-line row here, so scope calls land on the implementing agent mid-build and get reported afterwards. T25 is the worked example: whether the name form also belonged on `/me`, and whether capturing the browser timezone was in scope, were both decided by the agent and flagged in the commit rather than agreed first. Proposed to start at T8.
+- **Invariant test labelling.** §0 requires every invariant to have a test; `traceability.md` maps them by hand. Naming tests `INV-3: ...` the way `OV-` and `RS-` already are, plus a check that all eight appear, would mechanize it. Lowest priority of the four — the matrix is currently honest that INV-5 and INV-6 have no test because the dispatcher isn't built.
+
 
 ## Struck or deferred (ADR-0007)
 
