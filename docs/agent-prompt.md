@@ -4,6 +4,8 @@
 
 After each ticket: run the tests, open the app on a real phone, and only then move to the next.
 
+**Since T27, the ticket gets planned before it gets built.** `/opsx:propose` writes the proposal, delta spec, design and task list into `openspec/changes/`, and then stops for review; `/opsx:apply` implements the agreed list. The scope call that used to land mid-build is made here instead — see ADR-0008, and `openspec/config.yaml` for what every plan is written against. T8 is the first ticket to go through it.
+
 ---
 
 ## The prompt
@@ -51,8 +53,11 @@ Every invariant needs a test. If you cannot test it, say so rather than
 claiming it is handled.
 
 ## Ground rules
-1. Work ONE ticket at a time. Finish it, run the tests, tell me what you did and
-   what you were unsure about, then stop and wait.
+1. Work ONE ticket at a time. Plan it before you build it — run /opsx:propose,
+   show me the proposal, spec delta, design and task list, and WAIT. Then
+   /opsx:apply. Finish it, run the tests, tell me what you did and what you were
+   unsure about, then stop and wait again. Do not plan and implement in one go;
+   the review in between is the point.
 2. Do not add dependencies beyond the locked stack in §1 without asking. If you
    think a library is genuinely necessary, make the case in one paragraph first.
 3. Do not build anything in §13 (out of scope). If a ticket seems to require it,
@@ -67,6 +72,10 @@ claiming it is handled.
    than unwind a wrong assumption.
 9. Commit in small, reviewable units with clear messages. I need to be able to
    read the diffs.
+10. openspec/specs/ expands engineering-spec.md; it never overrides it, and
+   never an invariant. A delta spec that restates a spec section verbatim did
+   nothing. When archiving a change, fold what it settled back into the document
+   that owns it — the specs, an adr/, or a traceability.md row.
 
 ## What good looks like
 The success metric for v1 is not features shipped. It is: five real friend groups

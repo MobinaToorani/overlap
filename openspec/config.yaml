@@ -1,0 +1,276 @@
+schema: spec-driven
+
+# Shown to the agent before it writes any planning artifact. Everything here is
+# a constraint on the plan, never content to copy into it.
+#
+# This file exists because a plan that could have been written for any product
+# is worthless here. The invariants below are the product; a proposal that does
+# not know about them proposes something else.
+context: |
+  # Overlap
+
+  A planning layer for adult friend groups: one ten-second weekly ritual (the
+  Sunday Signal), and a rolling three-week heatmap of when the group is
+  actually free. Solo founder (Mobina) plus one implementing agent. Pre-pilot,
+  no real users yet.
+
+  The success metric for v1 is not features shipped. It is: five real friend
+  groups complete the Sunday Signal in week four without being nagged. A
+  beautiful feature that adds a step to the Signal is a regression.
+
+  ## Read these before planning anything
+
+  `docs/README.md` indexes every document and says which one wins when two
+  disagree. Read it first. Then, for whatever you are planning:
+
+  - `docs/engineering-spec.md` - the contract. Schema, tRPC surface,
+    algorithms, thresholds, per-sprint DoD (section 12), out-of-scope list
+    (section 13). Cite the section you are working from.
+  - `docs/overlap-master-doc.md` - intent. Why a rule exists and what the
+    product must never do.
+  - `docs/backlog.md` - the live board, T1..T27. Answers "where are we".
+  - `docs/traceability.md` - every rule to its enforcement to its ticket to
+    its test, and whether that is true today.
+  - `docs/adr/` - decisions taken while building, with the reasoning.
+  - `docs/audits/README.md` - the four audits and what each axis found.
+
+  ## Precedence when documents disagree
+
+  1. `docs/engineering-spec.md` - implementation detail (schema, API, algorithms)
+  2. `docs/overlap-master-doc.md` - intent (what it is for, what it must never do)
+  3. `openspec/specs/` - per-capability behavioural requirements, at scenario
+     granularity. Expands the engineering spec; never overrides it, and never
+     an invariant.
+  4. `docs/backlog.md` - current state
+  5. `docs/adr/` - decisions taken while building
+
+  Then fix the loser. A disagreement that survives a reading is how the next
+  correction gets lost. If your plan creates one, say so in the proposal
+  instead of quietly picking a side.
+
+  ## The eight invariants (engineering-spec section 0)
+
+  Each silently breaks the product if violated. Each must have a test. If a
+  change touches one, name it by number in the proposal and give it a scenario
+  in the delta spec.
+
+  - INV-1 Calendar sync may write `signal_night.state` of `blocked` or
+    `no_known_conflict` only. It may NEVER write `confirmed_free`. Only a human
+    tap creates that value. Guarded three ways (DB trigger, separate
+    `overlap_worker` Postgres role, zod input schema) because one guard is not
+    enough for the rule the whole product rests on.
+  - INV-2 Only `confirmed_free` counts toward overlap scores and headline text.
+    `no_known_conflict` is display-only.
+  - INV-3 Exact vibe counts only when the confirmed cohort is >= 5. Below that,
+    a qualitative band. Enforced in the overlap engine, never the UI.
+  - INV-4 `vibe = 'broke'` never appears in any count, band, or list, at any
+    cohort size. It may only influence suggestion ranking.
+  - INV-5 No user receives more than 4 notifications per rolling 7 days. Excess
+    is dropped, never queued.
+  - INV-6 Every dispatch logs four events: dispatched, delivered, opened,
+    completed.
+  - INV-7 Calendar reads use free/busy scopes only. Titles, descriptions,
+    locations and attendees are never requested or persisted.
+  - INV-8 At most one signal per user per `week_start_date` where
+    `group_id IS NULL`.
+
+  The three most likely to be broken by well-meaning code are INV-1, INV-3 and
+  INV-4. If you find yourself planning to "just pre-fill this to save a tap",
+  that is INV-1 and it is the bug, not the feature. An empty calendar does not
+  mean someone wants to leave the house.
+
+  The engine's job is to refuse to over-claim. When in doubt about whether to
+  show something, plan to show less.
+
+  ## Privacy rules that are not negotiable
+
+  Never log phone numbers, tokens, or calendar data - not in errors, not in
+  analytics, not in a debug line meant to be removed. `display_name` once
+  defaulted to the user's phone number and rendered it in every group's member
+  list; that class of bug is why this rule exists. A plan that adds a log line
+  near auth, notifications, or calendar sync should say what it logs.
+
+  ## Stack is locked
+
+  Next.js 15 App Router, TypeScript strict with no `any`, tRPC v11 with zod on
+  every procedure, Drizzle, Postgres via Supabase, Tailwind v4, Vitest, pnpm.
+  Python 3.12 + FastAPI for the worker.
+
+  No new dependencies without making the case first, in the proposal, in a
+  paragraph. Nothing in engineering-spec section 13 (out of scope) gets built -
+  if a change seems to require it, the change is probably wrong; say so.
+
+  ## Three test tiers
+
+  - unit (Vitest)
+  - schema, against pg-mem
+  - live Postgres - `apps/web/tests/integration/liveDb.test.ts`, skipped
+    without `DATABASE_URL`
+
+  The live tier exists because every defect that mattered in this project was
+  found by running the thing, not by reading it. If a change touches a query, a
+  transaction, or a constraint, the task list must prove it there, not only in
+  unit tests.
+
+  Named tests are real identifiers: `OV-1..OV-10` (overlap engine), `RS-1..RS-8`
+  (signal resolution). `verify:docs` checks that any test id cited in `docs/`
+  actually exists in the suite, so do not invent one in a document.
+
+  ## Vocabulary for findings
+
+  Four audits on four axes, and conflating them loses the findings that matter:
+
+  - A1-A11 audited the idea (`docs/overlap-master-doc.md` section 0)
+  - FIX-1-FIX-13 audited the documentation (`docs/audits/audit-report.md`)
+  - IMP-1-IMP-15 audited the code (`docs/audits/implementation-audit.md`)
+  - X-1-X-32 audited the seams between documents (`docs/audits/coherence-audit.md`)
+
+  `docs/traceability.md` maps every one to its enforcement, ticket and test.
+  If a change discharges or touches one, cite it by id.
+
+  ## Definition of done for any change
+
+  All five must pass:
+
+      pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm verify:docs
+
+  Then, in the same commit: update the ticket's Status in `docs/backlog.md`;
+  update its row in `docs/traceability.md` if it touched an invariant or an
+  A-/FIX-/IMP-/X- finding or added a test that proves one; and if a rule
+  changed in one spec, change it in the other and bump both versions -
+  `engineering-spec.md` and `overlap-master-doc.md` are a pair.
+
+  ## How work is sequenced
+
+  One ticket at a time. Finish it, update the board, stop - Mobina verifies on
+  a real phone between tickets. Tickets are T-numbered on `docs/backlog.md`.
+  Name a change directory after its ticket where one exists (`t27-<slug>`), and
+  say in the proposal which ticket it belongs to, or that it needs a new row.
+
+  ## When to stop and ask
+
+  The hard calls in this project have been design questions - should `lapsed`
+  exist, does pre-fill violate A2, is a stale `blocked` still true. Getting one
+  wrong changes what the product asserts about people. Ask rather than guess;
+  that has worked every time it has been done. Ambiguity about product intent
+  is a question. Ambiguity about implementation detail is usually answered in
+  `engineering-spec.md` - go and read it.
+
+rules:
+  proposal:
+    - >-
+      Cite coordinates, not categories. Name the engineering-spec section, the
+      INV-n, and the A-/FIX-/IMP-/X- finding id this change touches. "Improves
+      privacy" is not a motivation; "discharges X-28, which found INV-7 has no
+      `scope_granted` column recording what was actually granted" is.
+    - >-
+      State the ticket. Give the T-number from docs/backlog.md that owns this
+      work, or say explicitly that no row exists yet and one must be added.
+    - >-
+      Under Impact, list the documents the change will have to update, not only
+      the code - docs/backlog.md always, docs/traceability.md if an invariant or
+      a finding is touched, and both specs together if a rule changes.
+    - >-
+      If the change needs a dependency outside the locked stack, or anything in
+      engineering-spec section 13, make the case here in one paragraph or drop
+      it. Do not defer the argument to design.md.
+    - >-
+      Say what you are deliberately not doing. This project's failure mode is
+      scope decided mid-build by the implementing agent and reported afterwards;
+      the proposal is where that gets agreed instead.
+  specs:
+    - >-
+      Write scenarios at the altitude the engineering spec cannot reach. It
+      states the rule; a delta spec states the observable behaviour that proves
+      the rule holds, in WHEN/THEN form. Do not restate a spec section verbatim -
+      cite it and go one level more concrete.
+    - >-
+      Every invariant the change touches gets at least one scenario written as a
+      refusal - what the system must NOT do, and what happens when something
+      tries. INV-1's existing tests are the model: sync attempting
+      `confirmed_free` raises, rather than merely being absent.
+    - >-
+      Cover the below-threshold and empty cases explicitly. Cohorts under 5
+      (INV-3), under 3, and zero are the normal state at pilot scale, not edge
+      cases, and the engine must refuse to over-claim in all of them.
+    - >-
+      Keep capability paths aligned with the product's own nouns - signal,
+      overlap, plan, invite, group, notification, calendar - so openspec/specs/
+      reads as an expansion of the engineering spec rather than a second
+      vocabulary for the same things.
+    - >-
+      If a scenario contradicts docs/engineering-spec.md, stop and say so in the
+      proposal. The engineering spec wins; a delta spec that quietly disagrees
+      with it is exactly the seam the coherence audit was run to find.
+  design:
+    - >-
+      Name the enforcement layer for every rule the change adds, and justify it.
+      ADR-0003 is the standing principle: enforce at the lowest honest layer. A
+      guarantee that lives in the UI is one refactor from being lost.
+    - >-
+      Say which of the three test tiers proves each decision. If the change
+      touches a query, a transaction, or a constraint, say why the live-Postgres
+      tier is or is not needed - do not leave it implied.
+    - >-
+      Record the alternative you rejected and why. If the decision would be
+      expensive to silently re-litigate later, say that it warrants an ADR under
+      docs/adr/ and propose its number.
+    - >-
+      Skip this artifact only when the change is genuinely mechanical. Anything
+      touching the overlap engine, the notification dispatcher, the schema, or a
+      privacy boundary is not mechanical.
+  tasks:
+    - >-
+      Order tasks so the test that proves the rule is written before the code
+      that satisfies it, the way T2 wrote OV-6 and watched it fail before the
+      trigger existed.
+    - >-
+      Give every invariant and every finding the change touches its own task
+      naming the test that will prove it, and which tier it runs in. "Add tests"
+      is not a task.
+    - >-
+      No generic discovery tasks. "Explore the codebase" or "make a plan" means
+      the planning was left undone; name the file, the procedure, or the
+      migration instead.
+    - >-
+      End with the doc-maintenance tasks as real checkboxes - the five DoD
+      commands, the docs/backlog.md status update, the docs/traceability.md row
+      if applicable, and the paired spec version bump if a rule moved. They are
+      part of the same commit, so they are part of the same task list.
+    - >-
+      Keep each task small enough to review as a diff. Mobina reads them.
+
+operations:
+  apply:
+    guidance:
+      - >-
+        Work the task list in order and stop when it is done. Do not start the
+        next ticket - Mobina verifies on a real phone between tickets.
+      - >-
+        Run all five before claiming done - pnpm lint, typecheck, test, build,
+        verify:docs - and report failures with their output rather than
+        summarising them as passing.
+      - >-
+        Update docs/backlog.md and, where applicable, docs/traceability.md in
+        the same commit as the code. That rule is the reason corrections in this
+        repo stop getting lost.
+      - >-
+        If implementation reveals the plan was wrong, say so and revise the
+        change's artifacts rather than silently building something else. A plan
+        contradicted by the code is a finding, not an obstacle.
+  archive:
+    guidance:
+      - >-
+        Before archiving, fold anything the change settled back into the
+        documents that own it - a rule into docs/engineering-spec.md (and
+        docs/overlap-master-doc.md, with both versions bumped), a judgment call
+        into a new docs/adr/ entry, a discharged finding into its
+        docs/traceability.md row.
+      - >-
+        openspec/specs/ expands the engineering spec; it never replaces it. If
+        the archived requirements state a rule the engineering spec does not,
+        the engineering spec is now behind - fix it in the same commit.
+      - >-
+        Confirm the backlog row reflects what was actually verified. "Built and
+        unit-tested" and "verified against live Supabase" are different claims,
+        and this board distinguishes them deliberately.

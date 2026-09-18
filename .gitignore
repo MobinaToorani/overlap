@@ -47,3 +47,7 @@ pnpm-debug.log*
 # Agent/tool scratch output
 .playwright-mcp/
 *.tmp.html
+
+# Agent tooling: .claude/commands and .claude/skills are the OpenSpec workflow
+# and belong in the repo (ADR-0008). Local settings do not.
+.claude/settings.local.json

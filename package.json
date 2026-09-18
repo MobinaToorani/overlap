@@ -2,7 +2,7 @@
   "name": "overlap",
   "private": true,
   "version": "0.1.0",
-  "description": "Overlap — a scheduling and planning app for adult friend groups.",
+  "description": "Overlap \u2014 a scheduling and planning app for adult friend groups.",
   "engines": {
     "node": ">=20.9.0",
     "pnpm": ">=9"
@@ -13,15 +13,17 @@
     "build": "pnpm --filter @overlap/web build",
     "lint": "pnpm -r --if-present lint",
     "verify:docs": "node scripts/verify-docs.mjs",
+    "openspec": "openspec",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
     "test:coverage": "pnpm -r --if-present test:coverage",
     "db:generate": "pnpm --filter @overlap/web db:generate",
     "db:migrate": "pnpm --filter @overlap/web db:migrate",
-    "format": "prettier --write \"**/*.{ts,tsx,md,json}\" --ignore-path .gitignore",
-    "format:check": "prettier --check \"**/*.{ts,tsx,md,json}\" --ignore-path .gitignore"
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\" --ignore-path .gitignore --ignore-path .prettierignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx,md,json}\" --ignore-path .gitignore --ignore-path .prettierignore"
   },
   "devDependencies": {
+    "@fission-ai/openspec": "1.13.1",
     "prettier": "^3.4.2",
     "typescript": "^5.7.2"
   }

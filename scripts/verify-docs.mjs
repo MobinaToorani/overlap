@@ -11,7 +11,8 @@
  *
  * Run: pnpm verify:docs
  */
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -37,7 +38,14 @@ function walk(dir, test, out = []) {
 }
 
 const rel = (p) => relative(ROOT, p);
-const markdown = walk(ROOT, (f) => f.endsWith('.md'));
+
+// `openspec update` rewrites .claude/commands and .claude/skills wholesale, so
+// holding them to this repo's doc rules would fail on text nobody here
+// maintains. .claude/agents is hand-written and is checked like any other doc.
+const VENDORED = ['.claude/commands/', '.claude/skills/'];
+const vendored = (f) => VENDORED.some((dir) => rel(f).startsWith(dir));
+
+const markdown = walk(ROOT, (f) => f.endsWith('.md')).filter((f) => !vendored(f));
 const read = (p) => readFileSync(p, 'utf8');
 
 // ---------------------------------------------------------------------------
@@ -74,6 +82,11 @@ for (const file of markdown) {
   // Skip the audit write-ups: they record what a review said at the time,
   // including tests it proposed that were never built under that name.
   if (rel(file).startsWith('docs/audits/')) continue;
+  // Same reasoning for an in-flight OpenSpec change: naming the test that will
+  // prove a rule is exactly what its task list is supposed to do, and that test
+  // does not exist yet. Once the change archives, its requirements land in
+  // openspec/specs/, which is held to the rule like everything else.
+  if (rel(file).startsWith('openspec/changes/')) continue;
   for (const [, id] of read(file).matchAll(/\b((?:RS|OV)-\d+)\b/g)) citedIds.add(id);
 }
 for (const id of [...citedIds].sort()) {
@@ -155,6 +168,35 @@ ran('no mojibake');
 for (const file of [...markdown, ...walk(ROOT, (f) => /\.(html|tsx?|json)$/.test(f))]) {
   if (/â€|Ã©|Â /.test(read(file))) {
     fail('no mojibake', `${rel(file)} contains mis-decoded UTF-8`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 8. The OpenSpec planning layer is internally consistent.
+//
+// `openspec/` holds the per-ticket plans and the per-capability specs they
+// archive into (ADR-0008). Its own validator is the only thing that can check
+// a change declares the artifacts its schema requires, and that an archived
+// change really finished its task list. Folded in here rather than made a
+// sixth command, so the definition of done stays five.
+// ---------------------------------------------------------------------------
+ran('openspec plans validate');
+{
+  const bin = join(ROOT, 'node_modules/.bin/openspec');
+  if (!existsSync(bin)) {
+    fail('openspec plans validate', 'node_modules/.bin/openspec is missing — run pnpm install');
+  } else {
+    for (const args of [
+      ['validate', '--all', '--strict', '--no-interactive'],
+      ['validate', '--archived', '--no-interactive'],
+    ]) {
+      try {
+        execFileSync(bin, args, { cwd: ROOT, stdio: 'pipe', env: { ...process.env, OPENSPEC_TELEMETRY: '0' } });
+      } catch (err) {
+        const out = `${err.stdout ?? ''}${err.stderr ?? ''}`.trim();
+        fail('openspec plans validate', `openspec ${args.join(' ')} failed:\n${out}`);
+      }
+    }
   }
 }
 
