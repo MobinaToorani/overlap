@@ -1,0 +1,6 @@
+# Vendored by `openspec update` — reformatting it only creates diff noise
+# against text this repo does not maintain. See ADR-0008.
+#
+# .claude/agents/ is deliberately NOT here: those are hand-written.
+.claude/commands/
+.claude/skills/
